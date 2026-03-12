@@ -1,0 +1,152 @@
+import { watch } from 'chokidar';
+import { readdirSync, existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
+import { execSync } from 'child_process';
+import { parseClaudeSessionFile } from '../utils/parseTranscript.js';
+import { extractProjectName, dirNameToPath } from '../utils/projectName.js';
+import type { Agent, AgentStatus, Project } from '../../../shared/types.js';
+
+export type ClaudeWatcherCallback = (projects: Map<string, Project>) => void;
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+export class ClaudeWatcher {
+  private claudeBase: string;
+  private projects = new Map<string, Project>();
+  private onChange: ClaudeWatcherCallback;
+  private watcher: ReturnType<typeof watch> | null = null;
+  private scanInterval: ReturnType<typeof setInterval> | null = null;
+
+  constructor(onChange: ClaudeWatcherCallback) {
+    this.claudeBase = join(homedir(), '.claude', 'projects');
+    this.onChange = onChange;
+  }
+
+  start(): void {
+    if (!existsSync(this.claudeBase)) {
+      console.log('[ClaudeWatcher] No .claude/projects directory found, skipping');
+      return;
+    }
+
+    this.scan();
+
+    this.watcher = watch(join(this.claudeBase, '*/*.jsonl'), {
+      ignoreInitial: true,
+      awaitWriteFinish: { stabilityThreshold: 1000, pollInterval: 200 },
+    });
+
+    this.watcher.on('add', () => this.scan());
+    this.watcher.on('change', () => this.scan());
+    this.watcher.on('unlink', () => this.scan());
+
+    this.scanInterval = setInterval(() => this.scan(), 30_000);
+
+    console.log(`[ClaudeWatcher] Watching ${this.claudeBase}`);
+  }
+
+  stop(): void {
+    this.watcher?.close();
+    if (this.scanInterval) clearInterval(this.scanInterval);
+  }
+
+  private getRunningClaudeProcesses(): Map<string, number> {
+    const cwdToPid = new Map<string, number>();
+    try {
+      const output = execSync('ps aux', { encoding: 'utf-8', timeout: 5000 });
+      const lines = output.split('\n');
+      for (const line of lines) {
+        if (!line.includes('claude') || line.includes('grep')) continue;
+        const parts = line.trim().split(/\s+/);
+        if (parts.length < 2) continue;
+        const pid = parseInt(parts[1], 10);
+        if (isNaN(pid)) continue;
+
+        try {
+          const cwd = execSync(`lsof -p ${pid} -Fn 2>/dev/null | grep '^n/' | head -1`, {
+            encoding: 'utf-8',
+            timeout: 3000,
+          }).trim().replace(/^n/, '');
+          if (cwd) cwdToPid.set(cwd, pid);
+        } catch {
+          // couldn't get CWD
+        }
+      }
+    } catch {
+      // ps failed
+    }
+    return cwdToPid;
+  }
+
+  private scan(): void {
+    this.projects.clear();
+
+    let projectDirs: string[];
+    try {
+      projectDirs = readdirSync(this.claudeBase, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => d.name);
+    } catch {
+      return;
+    }
+
+    const runningProcesses = this.getRunningClaudeProcesses();
+
+    const IGNORED_DIRS = [
+      '-Users-swathibhat-Documents',
+      'Users-swathibhat-Documents',
+    ];
+
+    for (const dirName of projectDirs) {
+      if (IGNORED_DIRS.includes(dirName)) continue;
+      const projectPath = join(this.claudeBase, dirName);
+      const agents: Agent[] = [];
+
+      try {
+        const sessionFiles = readdirSync(projectPath).filter(f => f.endsWith('.jsonl'));
+        for (const file of sessionFiles) {
+          const data = parseClaudeSessionFile(join(projectPath, file));
+          if (!data) continue;
+
+          const isProcessRunning = Array.from(runningProcesses.entries()).some(
+            ([cwd]) => data.cwd && cwd.startsWith(data.cwd)
+          );
+
+          let status: AgentStatus;
+          if (isProcessRunning || data.isActive) {
+            status = 'working';
+          } else {
+            const ageMs = Date.now() - data.lastActivityMs;
+            status = ageMs < ONE_HOUR_MS ? 'waiting' : 'done';
+          }
+
+          agents.push({
+            id: `claude-${data.sessionId}`,
+            name: `Claude ${data.sessionId.slice(0, 8)}`,
+            status,
+            source: 'claude-code',
+            currentTask: data.latestTask,
+            lastAction: data.lastAction,
+          });
+        }
+      } catch {
+        continue;
+      }
+
+      if (agents.length === 0) continue;
+
+      const name = extractProjectName(dirName);
+      const path = dirNameToPath(dirName);
+
+      this.projects.set(dirName, {
+        id: `claude-${dirName}`,
+        name,
+        path,
+        agents,
+        gridPosition: { x: 0, y: 0 },
+      });
+    }
+
+    this.onChange(new Map(this.projects));
+  }
+}
