@@ -2,19 +2,21 @@ import { useEffect, useRef, useState } from 'react';
 import * as PIXI from 'pixi.js';
 import { createCharacterTextures } from '../village/sprites/characters.js';
 import { PALETTE, hashColor, darkenColor, lightenColor } from '../village/sprites/colors.js';
-import { friendlyName, humanizeTask, friendlyElapsed, friendlyWorkerStatus, friendlySource, friendlyStatus } from '../utils/humanize.js';
+import { friendlyNames, friendlyElapsed, friendlyWorkerStatus, friendlySource } from '../utils/humanize.js';
 import { getAvatarDataUrl } from '../utils/avatars.js';
+import type { HumanLingo } from '../hooks/useHumanLingo.js';
 import type { Project, Agent } from '@shared/types';
 
 interface Props {
   project: Project;
   onClose: () => void;
+  humanLingo: HumanLingo;
 }
 
 const INTERIOR_W = 520;
 const INTERIOR_H = 340;
 
-export function InteriorView({ project, onClose }: Props) {
+export function InteriorView({ project, onClose, humanLingo }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -70,8 +72,10 @@ export function InteriorView({ project, onClose }: Props) {
   }, [project.id]);
 
   const accent = getAccentForProject(project.name);
-  const activeCount = project.agents.filter(a => a.status === 'active').length;
-  const statusSummary = friendlyWorkerStatus(activeCount, project.agents.length - activeCount, project.agents.length);
+  const workingCount = project.agents.filter(a => a.status === 'working').length;
+  const waitingCount = project.agents.filter(a => a.status === 'waiting').length;
+  const statusSummary = friendlyWorkerStatus(workingCount, waitingCount, project.agents.length);
+  const nameMap = friendlyNames(project.agents);
 
   return (
     <>
@@ -106,10 +110,39 @@ export function InteriorView({ project, onClose }: Props) {
               <h2 className="font-pixel text-sm text-white">{project.name}</h2>
               <p className="text-[10px] text-white/70 font-mono truncate mt-0.5">{project.path}</p>
             </div>
-            <div className="flex-shrink-0">
-              <span className={`text-[10px] font-pixel ${activeCount > 0 ? 'text-green-400' : 'text-white/70'}`}>
+            <div className="flex-shrink-0 flex items-center gap-3">
+              <span className={`text-[10px] font-pixel ${workingCount > 0 ? 'text-green-400' : 'text-white/70'}`}>
                 {statusSummary}
               </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={humanLingo.toggle}
+                  className={`font-pixel text-[10px] px-3 py-1.5 rounded-lg border transition-all flex items-center gap-2 ${
+                    humanLingo.loading
+                      ? 'bg-amber-900/50 text-amber-300 border-amber-700 animate-pulse shadow-[0_0_12px_rgba(245,158,11,0.35)]'
+                      : humanLingo.active
+                        ? 'bg-amber-900/50 text-amber-300 border-amber-700 shadow-[0_0_8px_rgba(245,158,11,0.25)]'
+                        : 'bg-village-800 text-white/50 border-village-600 hover:text-white/70 hover:border-village-500'
+                  }`}
+                >
+                  {humanLingo.loading && (
+                    <span className="inline-block w-3 h-3 border-2 border-amber-300/30 border-t-amber-300 rounded-full animate-spin" />
+                  )}
+                  {humanLingo.loading
+                    ? 'Translating...'
+                    : humanLingo.active
+                      ? 'Human Lingo ON'
+                      : 'Human Lingo'}
+                </button>
+                {humanLingo.active && humanLingo.degraded && (
+                  <span
+                    className="text-[9px] font-pixel text-red-400/80 cursor-help"
+                    title="ANTHROPIC_API_KEY not set in .env — using basic text cleanup instead of LLM translation"
+                  >
+                    No API key
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -119,8 +152,11 @@ export function InteriorView({ project, onClose }: Props) {
               <AgentRow
                 key={agent.id}
                 agent={agent}
+                displayName={nameMap.get(agent.id)!}
                 isExpanded={expanded === agent.id}
                 onToggle={() => setExpanded(expanded === agent.id ? null : agent.id)}
+                getLabel={humanLingo.getLabel}
+                isTranslating={humanLingo.active && humanLingo.loading}
               />
             ))}
             {project.agents.length === 0 && (
@@ -135,9 +171,9 @@ export function InteriorView({ project, onClose }: Props) {
   );
 }
 
-function AgentRow({ agent, isExpanded, onToggle }: { agent: Agent; isExpanded: boolean; onToggle: () => void }) {
-  const name = friendlyName(agent);
-  const task = humanizeTask(agent.currentTask);
+function AgentRow({ agent, displayName, isExpanded, onToggle, getLabel, isTranslating }: { agent: Agent; displayName: string; isExpanded: boolean; onToggle: () => void; getLabel: (agent: Agent) => string | undefined; isTranslating: boolean }) {
+  const name = displayName;
+  const task = getLabel(agent);
   const avatarUrl = getAvatarDataUrl(agent.id, 32);
 
   return (
@@ -156,7 +192,7 @@ function AgentRow({ agent, isExpanded, onToggle }: { agent: Agent; isExpanded: b
           />
           {/* Status dot on avatar */}
           <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-village-800 ${
-            agent.status === 'active'
+            agent.status === 'working'
               ? 'bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.6)]'
               : 'bg-gray-500'
           }`} />
@@ -174,9 +210,11 @@ function AgentRow({ agent, isExpanded, onToggle }: { agent: Agent; isExpanded: b
               {friendlySource(agent.source)}
             </span>
           </div>
-          {task && (
+          {isTranslating ? (
+            <div className="mt-1 h-3 w-3/4 rounded bg-gradient-to-r from-village-700 via-village-600 to-village-700 bg-[length:200%_100%] animate-shimmer" />
+          ) : task ? (
             <p className="text-[10px] text-white/70 truncate mt-0.5">{task}</p>
-          )}
+          ) : null}
         </div>
 
         {/* Right side: time */}
@@ -384,17 +422,6 @@ function drawInterior(app: PIXI.Application, project: Project): void {
   g.rect(Math.floor(W * 0.68), 32, 42, 36);
   g.stroke({ width: 2, color: darkenColor(accent, 0.7) });
 
-  // === CLOCK ===
-  const clockX = Math.floor(W * 0.63);
-  g.circle(clockX, 30, 9);
-  g.fill(0xf0e8d8);
-  g.circle(clockX, 30, 9);
-  g.stroke({ width: 1, color: 0x6a5a48 });
-  g.rect(clockX - 0.5, 24, 1, 6);
-  g.fill(0x2a2a2a);
-  g.rect(clockX, 29.5, 5, 1);
-  g.fill(0x2a2a2a);
-
   app.stage.addChild(g);
 
   // === AGENTS (walking around the interior) ===
@@ -413,16 +440,22 @@ function drawInterior(app: PIXI.Application, project: Project): void {
   }[] = [];
 
   const floorMinY = floorY + 36;
+  const floorMidY = floorY + 49;
   const floorMaxY = floorY + 62;
+  const floorRows = [floorMinY, floorMaxY, floorMidY];
 
-  for (let i = 0; i < agents.length && i < 6; i++) {
+  const padX = 40;
+  const usableW = W - padX * 2;
+  const spacing = Math.max(36, Math.min(70, usableW / agents.length));
+
+  for (let i = 0; i < agents.length; i++) {
     const agent = agents[i];
     const textures = createCharacterTextures(app.renderer, agent.id);
-    const isActive = agent.status === 'active';
+    const isActive = agent.status === 'working';
 
     const container = new PIXI.Container();
-    const startX = 60 + i * 70;
-    const rowY = i % 2 === 0 ? floorMinY : floorMaxY;
+    const startX = padX + i * spacing + spacing / 2;
+    const rowY = floorRows[i % floorRows.length];
     container.x = startX;
     container.y = rowY;
 
@@ -460,10 +493,11 @@ function drawInterior(app: PIXI.Application, project: Project): void {
     });
   }
 
-  // Animate all agents
+  // Animate only working agents; idle ones stand still
   app.ticker.add(() => {
     for (const w of walkers) {
-      // Walk horizontally
+      if (!w.isActive) continue;
+
       w.container.x += w.speed * w.dir;
       if (w.container.x >= w.maxX) {
         w.dir = -1;
@@ -474,14 +508,9 @@ function drawInterior(app: PIXI.Application, project: Project): void {
         w.sprite.scale.x = 1.4;
       }
 
-      // Frame swap for walk cycle
       w.frame = (w.frame + 1) % 30;
       if (w.frame === 0 || w.frame === 15) {
-        if (w.isActive) {
-          w.sprite.texture = w.textures.active[w.frame === 0 ? 0 : 1];
-        } else {
-          w.sprite.texture = w.frame === 0 ? w.textures.idle : w.textures.active[0];
-        }
+        w.sprite.texture = w.textures.active[w.frame === 0 ? 0 : 1];
       }
     }
   });

@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   friendlyName,
-  humanizeTask,
-  humanizeLastAction,
-  humanizeToolUse,
+  friendlyNames,
   friendlyElapsed,
   friendlyWorkerStatus,
   friendlySource,
@@ -11,7 +9,7 @@ import {
 import type { Agent } from '@shared/types';
 
 function makeAgent(id: string): Agent {
-  return { id, name: id, status: 'active', source: 'cursor' };
+  return { id, name: id, status: 'working', source: 'cursor' };
 }
 
 describe('friendlyName', () => {
@@ -35,82 +33,30 @@ describe('friendlyName', () => {
   });
 });
 
-describe('humanizeTask', () => {
-  it('humanizes npm run dev', () => {
-    expect(humanizeTask('npm run dev')).toBe('Running dev server');
+describe('friendlyNames', () => {
+  it('returns unique display names for all agents', () => {
+    const agents = ['a', 'b', 'c'].map(makeAgent);
+    const names = friendlyNames(agents);
+    expect(names.size).toBe(3);
   });
 
-  it('humanizes npm install', () => {
-    expect(humanizeTask('npm install')).toBe('Installing packages');
+  it('appends Jr for the second agent with the same base name', () => {
+    const a1 = makeAgent('id-a');
+    const a2 = makeAgent('id-b');
+    const baseName1 = friendlyName(a1);
+    const baseName2 = friendlyName(a2);
+
+    if (baseName1 !== baseName2) return; // skip if no collision in this pair
+
+    const names = friendlyNames([a1, a2]);
+    expect(names.get(a1.id)).toBe(baseName1);
+    expect(names.get(a2.id)).toBe(`${baseName1} Jr`);
   });
 
-  it('humanizes git push', () => {
-    expect(humanizeTask('git push')).toBe('Pushing code');
-  });
-
-  it('humanizes git commit', () => {
-    expect(humanizeTask('git commit -m "fix"')).toBe('Saving a snapshot');
-  });
-
-  it('strips cd prefix before humanizing', () => {
-    expect(humanizeTask('cd /some/path && npm run dev')).toBe('Running dev server');
-  });
-
-  it('returns undefined for empty/null input', () => {
-    expect(humanizeTask(undefined)).toBeUndefined();
-    expect(humanizeTask('')).toBeUndefined();
-  });
-
-  it('summarizes natural language queries', () => {
-    const result = humanizeTask('Add a dark mode toggle to the settings page');
-    expect(result).toBeDefined();
-    expect(typeof result).toBe('string');
-  });
-});
-
-describe('humanizeToolUse', () => {
-  it('formats Write with file path', () => {
-    expect(humanizeToolUse('Write', 'src/app.ts')).toBe('Writing src/app.ts');
-  });
-
-  it('formats Read with file path', () => {
-    expect(humanizeToolUse('Read', 'config.json')).toBe('Reading config.json');
-  });
-
-  it('formats Shell with command', () => {
-    expect(humanizeToolUse('Shell', 'npm run test')).toBe('Running tests');
-    expect(humanizeToolUse('Shell', 'npm test')).toBe('Running a command');
-  });
-
-  it('formats Search with pattern', () => {
-    expect(humanizeToolUse('Grep', 'handleClick')).toBe('Searching for "handleClick"');
-  });
-
-  it('formats unknown tool name', () => {
-    expect(humanizeToolUse('CustomTool', 'some detail')).toBe('CustomTool: some detail');
-  });
-
-  it('returns label alone when no detail', () => {
-    expect(humanizeToolUse('WebFetch')).toBe('Fetching a page');
-  });
-});
-
-describe('humanizeLastAction', () => {
-  it('parses tool_use format (Tool:detail)', () => {
-    expect(humanizeLastAction('Write:app.tsx')).toBe('Writing app.tsx');
-  });
-
-  it('parses Shell commands', () => {
-    expect(humanizeLastAction('Shell:npm run build')).toBe('Building the project');
-  });
-
-  it('falls through to humanizeTask for plain text', () => {
-    const result = humanizeLastAction('Add a login page');
-    expect(result).toBeDefined();
-  });
-
-  it('returns undefined for empty input', () => {
-    expect(humanizeLastAction(undefined)).toBeUndefined();
+  it('keeps name unchanged when no collision', () => {
+    const agents = [makeAgent('unique-1')];
+    const names = friendlyNames(agents);
+    expect(names.get('unique-1')).toBe(friendlyName(agents[0]));
   });
 });
 

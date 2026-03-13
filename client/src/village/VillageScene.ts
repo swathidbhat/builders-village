@@ -1,22 +1,26 @@
 import * as PIXI from 'pixi.js';
 import { tileToScreen, TILE_W, TILE_H } from './IsometricGrid.js';
 import { createGrassTile, createPathTile, createTreeSprite, createFlowerSprite, createLampPost } from './sprites/tiles.js';
-import { createBuildingTexture, BUILDING_W, BUILDING_H, SHOP_WINDOW } from './sprites/buildings.js';
+import { createBuildingTexture, BUILDING_W, BUILDING_H } from './sprites/buildings.js';
 import { createCharacterTextures } from './sprites/characters.js';
 import type { VillageState, Project, Agent } from '@shared/types';
 
-const GRID_RADIUS = 14;
+const MIN_GRID_RADIUS = 8;
+const GRID_PADDING = 4;
+const DULL_TINT = 0x8a8a8a;
 
 interface StoreSprite {
   container: PIXI.Container;
   buildingSprite: PIXI.Sprite;
   projectId: string;
+  projectName: string;
   tileX: number;
   tileY: number;
   nameLabel: PIXI.Text;
   badgeText: PIXI.Text;
   agentSprites: Map<string, AgentSprite>;
-  glow: PIXI.Graphics;
+  statusLight: PIXI.Graphics;
+  doorOpen: boolean;
 }
 
 interface AgentSprite {
@@ -44,6 +48,8 @@ export class VillageScene {
   private stores = new Map<string, StoreSprite>();
   private tileTextures: PIXI.Texture[] = [];
   private clouds: { sprite: PIXI.Graphics; speed: number }[] = [];
+  private decorationSprites: PIXI.DisplayObject[] = [];
+  private currentGridRadius = 0;
 
   private isDragging = false;
   private dragStart = { x: 0, y: 0 };
@@ -73,7 +79,7 @@ export class VillageScene {
     this.world.y = this.app.screen.height / 3;
 
     this.generateTextures();
-    this.renderGround();
+    this.renderGround(MIN_GRID_RADIUS);
     this.createClouds();
     this.setupInteraction();
     this.setupAnimation();
@@ -85,6 +91,8 @@ export class VillageScene {
 
   updateState(state: VillageState): void {
     this.currentState = state;
+
+    this.expandGroundIfNeeded(state);
 
     const existingIds = new Set(this.stores.keys());
     const newIds = new Set(state.projects.map(p => p.id));
@@ -109,6 +117,18 @@ export class VillageScene {
     this.sortBuildingLayer();
   }
 
+  private expandGroundIfNeeded(state: VillageState): void {
+    let maxCoord = 0;
+    for (const project of state.projects) {
+      const { x, y } = project.gridPosition;
+      maxCoord = Math.max(maxCoord, Math.abs(x), Math.abs(y));
+    }
+    const needed = Math.max(MIN_GRID_RADIUS, maxCoord + GRID_PADDING);
+    if (needed > this.currentGridRadius) {
+      this.renderGround(needed);
+    }
+  }
+
   private generateTextures(): void {
     const renderer = this.app.renderer;
     for (let i = 0; i < 4; i++) {
@@ -116,11 +136,21 @@ export class VillageScene {
     }
   }
 
-  private renderGround(): void {
+  private renderGround(radius: number): void {
+    this.groundLayer.removeChildren();
+
+    for (const sprite of this.decorationSprites) {
+      if (sprite.parent) {
+        sprite.parent.removeChild(sprite);
+      }
+    }
+    this.decorationSprites = [];
+
+    this.currentGridRadius = radius;
     const renderer = this.app.renderer;
 
-    for (let x = -GRID_RADIUS; x <= GRID_RADIUS; x++) {
-      for (let y = -GRID_RADIUS; y <= GRID_RADIUS; y++) {
+    for (let x = -radius; x <= radius; x++) {
+      for (let y = -radius; y <= radius; y++) {
         const variant = (Math.abs(x * 7 + y * 13)) % this.tileTextures.length;
         const pos = tileToScreen(x, y);
         const sprite = new PIXI.Sprite(this.tileTextures[variant]);
@@ -130,7 +160,7 @@ export class VillageScene {
       }
     }
 
-    const decorations = this.generateDecorationPositions();
+    const decorations = this.generateDecorationPositions(radius);
     for (const dec of decorations) {
       const pos = tileToScreen(dec.x, dec.y);
       let texture: PIXI.Texture;
@@ -147,38 +177,32 @@ export class VillageScene {
       sprite.x = pos.x + TILE_W / 2 - texture.width / 2;
       sprite.y = pos.y - texture.height + TILE_H;
       this.buildingLayer.addChild(sprite);
+      this.decorationSprites.push(sprite);
     }
   }
 
-  private generateDecorationPositions() {
+  private generateDecorationPositions(radius: number) {
     const decs: { x: number; y: number; type: 'tree' | 'flower' | 'lamp'; variant: number }[] = [];
 
-    // Dense tree border
-    for (let i = -GRID_RADIUS; i <= GRID_RADIUS; i++) {
-      if (Math.abs(i) >= GRID_RADIUS - 1) {
-        for (let j = -GRID_RADIUS; j <= GRID_RADIUS; j += 2) {
+    for (let i = -radius; i <= radius; i++) {
+      if (Math.abs(i) >= radius - 1) {
+        for (let j = -radius; j <= radius; j += 2) {
           decs.push({ x: i, y: j, type: 'tree', variant: Math.abs(i + j) % 3 });
           decs.push({ x: j, y: i, type: 'tree', variant: Math.abs(i + j + 1) % 3 });
         }
       }
     }
 
-    // Scatter flowers and lamps inside the village
-    const interiorSpots = [
-      { x: -3, y: -6, type: 'flower' as const }, { x: 2, y: -5, type: 'flower' as const },
-      { x: 6, y: -3, type: 'flower' as const }, { x: -5, y: 2, type: 'flower' as const },
-      { x: 4, y: 5, type: 'flower' as const }, { x: -1, y: 7, type: 'flower' as const },
-      { x: -6, y: -3, type: 'flower' as const }, { x: 7, y: 1, type: 'flower' as const },
-      { x: 1, y: -8, type: 'flower' as const }, { x: -7, y: 4, type: 'flower' as const },
-      { x: -3, y: -3, type: 'lamp' as const }, { x: 4, y: 3, type: 'lamp' as const },
-      { x: -6, y: 6, type: 'lamp' as const }, { x: 7, y: -4, type: 'lamp' as const },
-      { x: 0, y: -9, type: 'lamp' as const }, { x: -8, y: 0, type: 'lamp' as const },
-      { x: -2, y: 8, type: 'tree' as const }, { x: 8, y: -1, type: 'tree' as const },
-      { x: -8, y: -5, type: 'tree' as const }, { x: 5, y: 8, type: 'tree' as const },
-    ];
-
-    for (let i = 0; i < interiorSpots.length; i++) {
-      decs.push({ ...interiorSpots[i], variant: i % 5 });
+    const step = Math.max(3, Math.floor(radius / 4));
+    for (let x = -radius + 3; x < radius - 2; x += step) {
+      for (let y = -radius + 3; y < radius - 2; y += step) {
+        const hash = Math.abs(x * 31 + y * 17);
+        if (hash % 4 === 0) continue;
+        const type = hash % 5 === 0 ? 'lamp' as const
+          : hash % 3 === 0 ? 'tree' as const
+          : 'flower' as const;
+        decs.push({ x, y, type, variant: hash % 5 });
+      }
     }
 
     return decs;
@@ -217,49 +241,44 @@ export class VillageScene {
     const { x: tileX, y: tileY } = project.gridPosition;
     const pos = tileToScreen(tileX, tileY);
 
-    // Warm glow behind building (ambient light from shop windows)
-    const glow = new PIXI.Graphics();
-    glow.ellipse(TILE_W / 2, TILE_H - 8, BUILDING_W * 0.52, 28);
-    glow.fill({ color: 0xf8e8c0, alpha: 0.18 });
-    glow.ellipse(TILE_W / 2, TILE_H - 4, BUILDING_W * 0.35, 16);
-    glow.fill({ color: 0xf8e8c0, alpha: 0.12 });
-    container.addChild(glow);
-
-    const buildingTexture = createBuildingTexture(this.app.renderer, project.name);
+    const hasActive = project.agents.some(a => a.status === 'working');
+    const buildingTexture = createBuildingTexture(this.app.renderer, project.name, hasActive);
     const buildingSprite = new PIXI.Sprite(buildingTexture);
     buildingSprite.x = -buildingTexture.width / 2 + TILE_W / 2;
     buildingSprite.y = -buildingTexture.height + TILE_H;
+    buildingSprite.tint = hasActive ? 0xffffff : DULL_TINT;
     container.addChild(buildingSprite);
 
-    // Lamp post to the right of the building
     const lampTexture = createLampPost(this.app.renderer);
     const lampSprite = new PIXI.Sprite(lampTexture);
     lampSprite.x = buildingSprite.x + BUILDING_W + 4;
     lampSprite.y = buildingSprite.y + BUILDING_H - lampTexture.height - 4;
     container.addChild(lampSprite);
 
-    const displayName = truncateName(project.name, 12);
+    const statusLight = new PIXI.Graphics();
+    const lightX = buildingSprite.x + BUILDING_W + 12;
+    const lightY = buildingSprite.y + BUILDING_H - 20;
+    drawStatusLight(statusLight, lightX, lightY, hasActive);
+    container.addChild(statusLight);
 
-    // Name on the building's sign banner
-    const signY = 105;
+    const displayName = truncateName(project.name, 16);
+
+    const signCenterY = 105;
     const nameLabel = new PIXI.Text({
       text: displayName,
       style: {
         fontFamily: '"Press Start 2P", monospace',
-        fontSize: 6,
+        fontSize: 7,
         fill: 0xffffff,
         stroke: { color: 0x000000, width: 2 },
         align: 'center',
-        wordWrap: true,
-        wordWrapWidth: BUILDING_W - 30,
       },
     });
     nameLabel.anchor.set(0.5, 0.5);
     nameLabel.x = buildingSprite.x + BUILDING_W / 2;
-    nameLabel.y = buildingSprite.y + signY + 8;
+    nameLabel.y = buildingSprite.y + signCenterY;
     container.addChild(nameLabel);
 
-    // Agent count badge (top-right of building)
     const badgeBg = new PIXI.Graphics();
     const badgeX = buildingSprite.x + BUILDING_W - 6;
     const badgeY = buildingSprite.y + 12;
@@ -283,25 +302,20 @@ export class VillageScene {
     container.x = pos.x;
     container.y = pos.y;
 
-    // Fade in
     container.alpha = 0;
-    const fadeIn = () => {
+    const appearIn = () => {
       container.alpha = Math.min(1, container.alpha + 0.05);
-      if (container.alpha < 1) requestAnimationFrame(fadeIn);
+      if (container.alpha < 1) requestAnimationFrame(appearIn);
     };
-    requestAnimationFrame(fadeIn);
+    requestAnimationFrame(appearIn);
 
-    // Hover
     container.on('pointerenter', () => {
       container.scale.set(1.04);
-      glow.alpha = 2.5;
     });
     container.on('pointerleave', () => {
       container.scale.set(1);
-      glow.alpha = 1;
     });
 
-    // Click (only if not dragging)
     container.on('pointertap', (e) => {
       if (this.dragDistance > 5) return;
       e.stopPropagation();
@@ -317,59 +331,74 @@ export class VillageScene {
       container,
       buildingSprite,
       projectId: project.id,
+      projectName: project.name,
       tileX,
       tileY,
       nameLabel,
       badgeText,
       agentSprites: new Map(),
-      glow,
+      statusLight,
+      doorOpen: hasActive,
     };
 
-    this.addAgentSprites(store, project.agents);
+    const rep = this.getRepresentativeAgent(project.agents);
+    if (rep) this.addAgentSprites(store, [rep]);
     this.stores.set(project.id, store);
+  }
+
+  private getRepresentativeAgent(agents: Agent[]): Agent | null {
+    const working = agents.find(a => a.status === 'working');
+    if (working) return working;
+    const waiting = agents.find(a => a.status === 'waiting');
+    if (waiting) return waiting;
+    return null;
   }
 
   private updateStore(project: Project): void {
     const store = this.stores.get(project.id);
     if (!store) return;
 
-    const displayName = truncateName(project.name, 12);
+    const displayName = truncateName(project.name, 16);
     if (store.nameLabel.text !== displayName) {
       store.nameLabel.text = displayName;
     }
 
-    // Update badge count
     const newBadge = `${project.agents.length}`;
     if (store.badgeText.text !== newBadge) {
       store.badgeText.text = newBadge;
     }
 
-    // Update glow intensity for active agents
-    const hasActive = project.agents.some(a => a.status === 'active');
-    store.glow.alpha = hasActive ? 1.8 : 1.0;
+    const hasWorking = project.agents.some(a => a.status === 'working');
 
-    // Sync agents
-    const existingAgentIds = new Set(store.agentSprites.keys());
-    const newAgentIds = new Set(project.agents.map(a => a.id));
+    if (store.doorOpen !== hasWorking) {
+      store.doorOpen = hasWorking;
+      const newTexture = createBuildingTexture(this.app.renderer, store.projectName, hasWorking);
+      store.buildingSprite.texture = newTexture;
 
-    for (const id of existingAgentIds) {
-      if (!newAgentIds.has(id)) {
-        const agentSprite = store.agentSprites.get(id)!;
-        store.container.removeChild(agentSprite.container);
-        agentSprite.container.destroy({ children: true });
-        store.agentSprites.delete(id);
-      }
+      store.buildingSprite.tint = hasWorking ? 0xffffff : DULL_TINT;
+
+      store.statusLight.clear();
+      const lightX = store.buildingSprite.x + BUILDING_W + 12;
+      const lightY = store.buildingSprite.y + BUILDING_H - 20;
+      drawStatusLight(store.statusLight, lightX, lightY, hasWorking);
     }
 
-    const newAgents = project.agents.filter(a => !existingAgentIds.has(a.id));
-    this.addAgentSprites(store, newAgents);
+    const rep = this.getRepresentativeAgent(project.agents);
+    const currentRepId = store.agentSprites.size > 0
+      ? store.agentSprites.keys().next().value
+      : null;
 
-    for (const agent of project.agents) {
-      const agentSprite = store.agentSprites.get(agent.id);
-      if (agentSprite) {
-        if (agent.status !== 'working' && agent.status !== 'active') {
-          agentSprite.sprite.texture = agentSprite.textures.idle;
-        }
+    if (rep?.id !== currentRepId) {
+      for (const [, agentSprite] of store.agentSprites) {
+        store.container.removeChild(agentSprite.container);
+        agentSprite.container.destroy({ children: true });
+      }
+      store.agentSprites.clear();
+      if (rep) this.addAgentSprites(store, [rep]);
+    } else if (rep && currentRepId) {
+      const as = store.agentSprites.get(currentRepId)!;
+      if (rep.status !== 'working') {
+        as.sprite.texture = as.textures.idle;
       }
     }
   }
@@ -385,31 +414,18 @@ export class VillageScene {
       const textures = createCharacterTextures(this.app.renderer, agent.id);
       const agentContainer = new PIXI.Container();
 
-      const isActive = agent.status === 'active' || agent.status === 'working';
+      const isActive = agent.status === 'working';
       const sprite = new PIXI.Sprite(
         isActive ? textures.active[0] : textures.idle
       );
       sprite.anchor.set(0.5, 1);
 
-      // Window slot position (where idle agents stand)
-      const totalIdx = store.agentSprites.size + i;
-      const maxInWindow = 3;
-      let windowX: number;
-      let windowY: number;
-
-      if (totalIdx < maxInWindow) {
-        windowX = bx + SHOP_WINDOW.x + 14 + totalIdx * 26;
-        windowY = by + SHOP_WINDOW.y + SHOP_WINDOW.h - 4;
-      } else {
-        const overflowIdx = totalIdx - maxInWindow;
-        windowX = bx + BUILDING_W / 2 + 20 + overflowIdx * 14;
-        windowY = by + BUILDING_H - 4;
-      }
+      const windowX = bx + BUILDING_W / 2 + 10;
+      const windowY = by + BUILDING_H - 4;
 
       agentContainer.x = windowX;
       agentContainer.y = windowY;
 
-      // Carried box (visible only when active)
       const box = new PIXI.Graphics();
       box.rect(-6, -19, 12, 10);
       box.fill(0xd4a050);
@@ -422,7 +438,7 @@ export class VillageScene {
       store.container.addChild(agentContainer);
 
       const patrolY = by + BUILDING_H - 4;
-      const walkSpeed = 0.4 + ((totalIdx * 7) % 5) * 0.12;
+      const walkSpeed = 0.4 + ((i * 7) % 5) * 0.12;
 
       store.agentSprites.set(agent.id, {
         container: agentContainer,
@@ -436,7 +452,7 @@ export class VillageScene {
         patrolMaxX: bx + BUILDING_W + 20,
         patrolY,
         walkSpeed,
-        walkDir: totalIdx % 2 === 0 ? 1 : -1,
+        walkDir: 1,
       });
     }
   }
@@ -481,16 +497,12 @@ export class VillageScene {
     this.app.ticker.add(() => {
       this.animTimer += this.app.ticker.deltaMS;
 
-      // Animate characters every 400ms
       if (this.animTimer > 400) {
         this.animTimer = 0;
         this.animateAgents();
       }
 
-      // Animate clouds continuously
       this.animateClouds();
-
-      // Move active agents carrying boxes
       this.moveWalkingAgents();
     });
   }
@@ -506,7 +518,7 @@ export class VillageScene {
         const agentSprite = store.agentSprites.get(agent.id);
         if (!agentSprite) continue;
 
-        if (agent.status === 'active' || agent.status === 'working') {
+        if (agent.status === 'working') {
           agentSprite.animFrame = (agentSprite.animFrame + 1) % 2;
           agentSprite.sprite.texture = agentSprite.textures.active[agentSprite.animFrame];
         }
@@ -547,7 +559,6 @@ export class VillageScene {
       sky.fill(color);
     }
 
-    // Warm horizon glow at the lower portion
     sky.rect(startX, startY + totalH * 0.75, w, totalH * 0.25);
     sky.fill({ color: 0xf8e8c0, alpha: 0.05 });
 
@@ -565,10 +576,9 @@ export class VillageScene {
         const as = store.agentSprites.get(agent.id);
         if (!as) continue;
 
-        const isActive = agent.status === 'active' || agent.status === 'working';
+        const isActive = agent.status === 'working';
 
         if (isActive) {
-          // Smoothly transition to patrol Y (ground level)
           const dy = as.patrolY - as.container.y;
           if (Math.abs(dy) > 1) {
             as.container.y += dy * 0.08;
@@ -576,7 +586,6 @@ export class VillageScene {
             as.container.y = as.patrolY;
           }
 
-          // Walk horizontally
           as.container.x += as.walkSpeed * as.walkDir;
           if (as.container.x >= as.patrolMaxX) {
             as.walkDir = -1;
@@ -589,7 +598,6 @@ export class VillageScene {
 
           as.box.visible = true;
         } else {
-          // Lerp back to window position
           const dxw = as.windowX - as.container.x;
           const dyw = as.windowY - as.container.y;
           if (Math.abs(dxw) > 1 || Math.abs(dyw) > 1) {
@@ -614,4 +622,22 @@ export class VillageScene {
 function truncateName(name: string, maxLen: number): string {
   if (name.length <= maxLen) return name;
   return name.slice(0, maxLen - 2) + '..';
+}
+
+function drawStatusLight(g: PIXI.Graphics, x: number, y: number, active: boolean): void {
+  g.rect(x + 1, y - 8, 2, 8);
+  g.fill(0x4a4a4a);
+
+  g.roundRect(x - 4, y - 2, 12, 10, 2);
+  g.fill(0x3a3a3a);
+
+  if (active) {
+    g.circle(x + 2, y + 3, 5);
+    g.fill({ color: 0x40e040, alpha: 0.25 });
+    g.circle(x + 2, y + 3, 3);
+    g.fill(0x30d030);
+  } else {
+    g.circle(x + 2, y + 3, 3);
+    g.fill(0x3a3a3a);
+  }
 }

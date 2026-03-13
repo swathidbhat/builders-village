@@ -3,17 +3,17 @@ import { extractProjectName, dirNameToPath } from '../projectName.js';
 
 describe('extractProjectName', () => {
   it('extracts project name after known path segments', () => {
-    expect(extractProjectName('Users-swathibhat-Documents-GitHub-infinity-canvas'))
+    expect(extractProjectName('Users-alice-Documents-GitHub-infinity-canvas'))
       .toBe('infinity-canvas');
   });
 
   it('handles CODE directory prefix', () => {
-    expect(extractProjectName('Users-swathibhat-Documents-CODE-GitHub-research-paper-analyzer'))
+    expect(extractProjectName('Users-alice-Documents-CODE-GitHub-research-paper-analyzer'))
       .toBe('research-paper-analyzer');
   });
 
   it('handles leading dash', () => {
-    expect(extractProjectName('-Users-swathibhat-Documents-GitHub-fallacy-chrome-extension'))
+    expect(extractProjectName('-Users-alice-Documents-GitHub-fallacy-chrome-extension'))
       .toBe('fallacy-chrome-extension');
   });
 
@@ -33,34 +33,34 @@ describe('extractProjectName', () => {
   });
 
   it('handles Desktop prefix', () => {
-    expect(extractProjectName('Users-swathibhat-Desktop-quick-test'))
+    expect(extractProjectName('Users-alice-Desktop-quick-test'))
       .toBe('quick-test');
   });
 
   it('handles simple single-word project name', () => {
-    expect(extractProjectName('Users-swathibhat-Documents-GitHub-monorepo'))
+    expect(extractProjectName('Users-alice-Documents-GitHub-monorepo'))
       .toBe('monorepo');
   });
 });
 
 describe('dirNameToPath', () => {
   it('converts encoded dir name to filesystem path', () => {
-    expect(dirNameToPath('Users-swathibhat-Documents-GitHub-infinity-canvas'))
-      .toBe('/Users/swathibhat/Documents/GitHub/infinity-canvas');
+    expect(dirNameToPath('Users-alice-Documents-GitHub-infinity-canvas'))
+      .toBe('/Users/alice/Documents/GitHub/infinity-canvas');
   });
 
   it('handles leading dash', () => {
-    expect(dirNameToPath('-Users-swathibhat-Documents-GitHub-my-app'))
-      .toBe('/Users/swathibhat/Documents/GitHub/my-app');
+    expect(dirNameToPath('-Users-alice-Documents-GitHub-my-app'))
+      .toBe('/Users/alice/Documents/GitHub/my-app');
   });
 
   it('handles CODE subdirectory', () => {
-    expect(dirNameToPath('Users-swathibhat-Documents-CODE-GitHub-thing'))
-      .toBe('/Users/swathibhat/Documents/CODE/GitHub/thing');
+    expect(dirNameToPath('Users-alice-Documents-CODE-GitHub-thing'))
+      .toBe('/Users/alice/Documents/CODE/GitHub/thing');
   });
 
   it('preserves hyphens in project name', () => {
-    const result = dirNameToPath('Users-swathibhat-Documents-GitHub-my-cool-project');
-    expect(result).toBe('/Users/swathibhat/Documents/GitHub/my-cool-project');
+    const result = dirNameToPath('Users-alice-Documents-GitHub-my-cool-project');
+    expect(result).toBe('/Users/alice/Documents/GitHub/my-cool-project');
   });
 });

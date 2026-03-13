@@ -3,7 +3,7 @@ import { parseTerminalContent } from '../parseTerminal.js';
 
 const activeTerminal = `---
 pid: ${process.pid}
-cwd: /Users/swathibhat/Documents/GitHub/my-project
+cwd: /Users/alice/Documents/GitHub/my-project
 last_command: npm run dev
 started_at: 2026-03-10T10:00:00Z
 ---
@@ -12,7 +12,7 @@ Listening on port 3000`;
 
 const completedTerminal = `---
 pid: 99999
-cwd: /Users/swathibhat/Documents/GitHub/my-project
+cwd: /Users/alice/Documents/GitHub/my-project
 last_command: npm test
 ---
 Running tests...
@@ -21,7 +21,7 @@ exit_code: 0`;
 
 const failedTerminal = `---
 pid: 88888
-cwd: /Users/swathibhat/Documents/GitHub/my-project
+cwd: /Users/alice/Documents/GitHub/my-project
 last_command: npm run build
 ---
 Build failed.
@@ -32,7 +32,7 @@ describe('parseTerminalContent', () => {
     const result = parseTerminalContent(activeTerminal);
     expect(result).not.toBeNull();
     expect(result!.pid).toBe(process.pid);
-    expect(result!.cwd).toBe('/Users/swathibhat/Documents/GitHub/my-project');
+    expect(result!.cwd).toBe('/Users/alice/Documents/GitHub/my-project');
     expect(result!.command).toBe('npm run dev');
     expect(result!.isRunning).toBe(true);
     expect(result!.exitCode).toBeUndefined();

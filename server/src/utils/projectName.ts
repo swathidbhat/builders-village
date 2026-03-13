@@ -4,9 +4,9 @@
  * Strategy: find the last occurrence of a "known parent directory" in the
  * hyphen-delimited segments, then take everything after it as the project name.
  *
- * "Users-swathibhat-Documents-GitHub-infinity-canvas" -> "infinity-canvas"
- * "-Users-swathibhat-Documents-GitHub-fallacy-chrome-extension" -> "fallacy-chrome-extension"
- * "Users-swathibhat-Documents-CODE-GitHub-research-paper-analyzer" -> "research-paper-analyzer"
+ * "Users-alice-Documents-GitHub-infinity-canvas" -> "infinity-canvas"
+ * "-Users-alice-Documents-GitHub-fallacy-chrome-extension" -> "fallacy-chrome-extension"
+ * "Users-alice-Documents-CODE-GitHub-research-paper-analyzer" -> "research-paper-analyzer"
  */
 export function extractProjectName(dirName: string): string {
   const cleaned = dirName.startsWith('-') ? dirName.slice(1) : dirName;

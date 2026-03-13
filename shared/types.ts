@@ -1,5 +1,5 @@
-export type AgentStatus = 'active' | 'working' | 'waiting' | 'done';
-export type AgentSource = 'cursor' | 'claude-code';
+export type AgentStatus = 'working' | 'waiting' | 'done';
+export type AgentSource = 'cursor' | 'claude-code' | 'codex';
 
 export interface Agent {
   id: string;
@@ -29,6 +29,15 @@ export interface ServerToClientEvents {
   'village:state': (state: VillageState) => void;
 }
 
+export interface HumanizeResponse {
+  texts: Record<string, string>;
+  usedLLM: boolean;
+}
+
 export interface ClientToServerEvents {
   'village:request-state': () => void;
+  'village:humanize': (
+    texts: string[],
+    callback: (result: HumanizeResponse) => void,
+  ) => void;
 }

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Project, Agent } from '@shared/types';
+import type { HumanLingo } from '../hooks/useHumanLingo.js';
+import { formatActivity } from '../utils/humanize.js';
 
 interface Props {
   project: Project | null;
@@ -63,8 +65,6 @@ export function DetailPanel({ project, onClose }: Props) {
 }
 
 function AgentCard({ agent }: { agent: Agent }) {
-  const [expanded, setExpanded] = useState(false);
-
   return (
     <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors">
       <div className="flex items-center gap-3 mb-2">
@@ -90,21 +90,11 @@ function AgentCard({ agent }: { agent: Agent }) {
       </div>
 
       {/* Task description */}
-      {agent.currentTask && (
-        <div
-          className="mt-2 cursor-pointer"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <p className={`text-xs text-gray-300 font-mono leading-relaxed ${
-            expanded ? '' : 'line-clamp-2'
-          }`}>
-            {agent.currentTask}
+      {formatActivity(agent.lastAction || agent.currentTask) && (
+        <div className="mt-2">
+          <p className="text-xs text-gray-300 font-mono leading-relaxed">
+            {formatActivity(agent.lastAction || agent.currentTask)}
           </p>
-          {agent.currentTask.length > 80 && (
-            <span className="text-[9px] text-gray-500 font-pixel mt-1 inline-block">
-              {expanded ? '[ less ]' : '[ more ]'}
-            </span>
-          )}
         </div>
       )}
 

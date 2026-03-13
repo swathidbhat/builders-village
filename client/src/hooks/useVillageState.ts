@@ -41,5 +41,5 @@ export function useVillageState() {
     socketRef.current?.emit('village:request-state');
   }, []);
 
-  return { state, connected, requestRefresh };
+  return { state, connected, requestRefresh, socketRef };
 }

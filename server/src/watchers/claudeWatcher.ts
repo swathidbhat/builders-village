@@ -40,7 +40,7 @@ export class ClaudeWatcher {
     this.watcher.on('change', () => this.scan());
     this.watcher.on('unlink', () => this.scan());
 
-    this.scanInterval = setInterval(() => this.scan(), 30_000);
+    this.scanInterval = setInterval(() => this.scan(), 60_000);
 
     console.log(`[ClaudeWatcher] Watching ${this.claudeBase}`);
   }
@@ -92,13 +92,10 @@ export class ClaudeWatcher {
 
     const runningProcesses = this.getRunningClaudeProcesses();
 
-    const IGNORED_DIRS = [
-      '-Users-swathibhat-Documents',
-      'Users-swathibhat-Documents',
-    ];
-
     for (const dirName of projectDirs) {
-      if (IGNORED_DIRS.includes(dirName)) continue;
+      const projectName = extractProjectName(dirName);
+      const SYSTEM_DIRS = ['Documents', 'Desktop', 'Downloads', 'home', 'Users'];
+      if (SYSTEM_DIRS.includes(projectName)) continue;
       const projectPath = join(this.claudeBase, dirName);
       const agents: Agent[] = [];
 

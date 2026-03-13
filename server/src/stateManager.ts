@@ -4,6 +4,7 @@ import type { VillageState, Project } from '../../shared/types.js';
 export class StateManager extends EventEmitter {
   private cursorProjects = new Map<string, Project>();
   private claudeProjects = new Map<string, Project>();
+  private codexProjects = new Map<string, Project>();
   private state: VillageState = { projects: [], lastUpdated: new Date().toISOString() };
 
   updateCursorProjects(projects: Map<string, Project>): void {
@@ -16,6 +17,11 @@ export class StateManager extends EventEmitter {
     this.rebuild();
   }
 
+  updateCodexProjects(projects: Map<string, Project>): void {
+    this.codexProjects = projects;
+    this.rebuild();
+  }
+
   getState(): VillageState {
     return this.state;
   }
@@ -23,11 +29,21 @@ export class StateManager extends EventEmitter {
   private rebuild(): void {
     const merged = new Map<string, Project>();
 
-    for (const [key, project] of this.cursorProjects) {
+    for (const [_key, project] of this.cursorProjects) {
       merged.set(this.normalizeKey(project.path), { ...project });
     }
 
-    for (const [key, project] of this.claudeProjects) {
+    for (const [_key, project] of this.claudeProjects) {
+      const normalizedKey = this.normalizeKey(project.path);
+      const existing = merged.get(normalizedKey);
+      if (existing) {
+        existing.agents = [...existing.agents, ...project.agents];
+      } else {
+        merged.set(normalizedKey, { ...project });
+      }
+    }
+
+    for (const [_key, project] of this.codexProjects) {
       const normalizedKey = this.normalizeKey(project.path);
       const existing = merged.get(normalizedKey);
       if (existing) {
@@ -52,9 +68,6 @@ export class StateManager extends EventEmitter {
     return path.toLowerCase().replace(/[_\s]/g, '-').replace(/\/+$/, '');
   }
 
-  /**
-   * Lay out buildings in a spiral pattern from the center of the village.
-   */
   private assignGridPositions(projects: Project[]): void {
     const positions = generateSpiralPositions(projects.length);
     for (let i = 0; i < projects.length; i++) {

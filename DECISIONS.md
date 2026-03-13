@@ -4,6 +4,30 @@ Newest decisions at the top.
 
 ---
 
+## 2026-03-12 | Codex agent support
+
+**Decision**: Added a `CodexWatcher` that detects Codex (OpenAI) agent sessions alongside the existing Cursor and Claude Code watchers. Added `'codex'` to the `AgentSource` type. Sessions are discovered from `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` files.
+
+**Principles applied**: Same architecture, additive change. Each watcher is independent.
+
+**Why**: The user runs Codex agents in addition to Cursor and Claude Code. The village should show all active agents regardless of which tool launched them.
+
+**Tradeoffs accepted**: Codex stores sessions by date rather than by project. The watcher must read the `session_meta` record (first line of each JSONL) to extract the `cwd` and group sessions by project. Multi-megabyte session files are handled by only reading the first line during scan. Running process detection uses `ps aux` + `lsof`, same approach as the Claude watcher.
+
+---
+
+## 2026-03-12 | Status light replaces glow, inactive shops dulled via tint
+
+**Decision**: Removed the yellow glow ellipse beneath buildings. Replaced it with a small wall-mounted status light next to each building: bright green when any agent is working, dark/off when not. Inactive shops are dulled using a `tint` on the building sprite (`0x8a8a8a`) instead of reducing alpha.
+
+**Principles applied**: Clear binary signal over ambient effect. Dull means muted, not invisible.
+
+**Why**: The glow effect was visually ambiguous — a fuzzy yellow ellipse beneath the building didn't clearly communicate "active vs inactive." A green light is an unambiguous signal. Dulling via tint darkens and desaturates the building while keeping it fully opaque and readable, which is distinct from the old approach of fading (alpha) that made inactive buildings look ghostly.
+
+**Tradeoffs accepted**: The status light is a small element that may be hard to see at max zoom-out, but it works in tandem with the tint — even without noticing the light, the dull building communicates inactivity.
+
+---
+
 ## 2026-03-10 | Building size scales with lines of code
 
 **Decision**: The exterior building height/complexity scales with the project's total lines of code (excluding `node_modules`, `.git`, `dist`, and other dependency/build directories). Small projects are small single-story shops. Large codebases become tall multi-story buildings with richer architectural detail.
@@ -66,11 +90,11 @@ Newest decisions at the top.
 
 ## 2026-03-10 | Username-aware project name extraction
 
-**Decision**: When parsing encoded directory names like `Users-swathibhat-Documents-GitHub-foo`, skip the username segment that follows `Users` or `home` in addition to known path prefixes.
+**Decision**: When parsing encoded directory names like `Users-alice-Documents-GitHub-foo`, skip the username segment that follows `Users` or `home` in addition to known path prefixes.
 
 **Principles applied**: Correctness; user-facing display quality.
 
-**Why**: The first implementation only tracked "known prefixes" (Users, Documents, GitHub, etc.) but treated the username as a regular segment, causing names like "swathibhat-ad-hoc" instead of "ad-hoc". Since the username always immediately follows a user-root directory, we can reliably skip it.
+**Why**: The first implementation only tracked "known prefixes" (Users, Documents, GitHub, etc.) but treated the username as a regular segment, causing names like "alice-ad-hoc" instead of "ad-hoc". Since the username always immediately follows a user-root directory, we can reliably skip it.
 
 **Tradeoffs accepted**: Hard-codes the assumption that usernames are a single segment (no hyphens in the username itself). Works for typical setups.
 

@@ -17,7 +17,8 @@ export const SHOP_WINDOW = {
 
 export function createBuildingTexture(
   renderer: PIXI.Renderer,
-  projectName: string
+  projectName: string,
+  doorOpen = false,
 ): PIXI.Texture {
   const g = new PIXI.Graphics();
   const accent = hashColor(projectName, PALETTE.accentColors);
@@ -194,23 +195,41 @@ export function createBuildingTexture(
   g.rect(doorX - 2, doorY - 2, doorW + 4, doorH + 4);
   g.fill(PALETTE.windowFrame);
 
-  // Door body
-  g.rect(doorX, doorY, doorW, doorH);
-  g.fill(PALETTE.doorLight);
+  if (doorOpen) {
+    // Dark interior visible through open doorway
+    g.rect(doorX, doorY, doorW, doorH);
+    g.fill(0x2a1a0a);
+    g.rect(doorX + 2, doorY + 2, doorW - 4, doorH - 2);
+    g.fill({ color: PALETTE.windowGlowWarm, alpha: 0.25 });
 
-  // Upper panel (glass)
-  g.rect(doorX + 3, doorY + 3, doorW - 6, doorH * 0.4);
-  g.fill({ color: PALETTE.windowGlowBright, alpha: 0.5 });
+    // Door swung inward (visible as narrow panel on right edge)
+    g.rect(doorX + doorW - 8, doorY, 8, doorH);
+    g.fill({ color: PALETTE.doorLight, alpha: 0.6 });
+    g.rect(doorX + doorW - 6, doorY + 3, 4, doorH * 0.4);
+    g.fill({ color: PALETTE.windowGlowBright, alpha: 0.3 });
 
-  // Lower panels
-  g.rect(doorX + 3, doorY + doorH * 0.5, doorW - 6, doorH * 0.2);
-  g.fill(PALETTE.doorDark);
-  g.rect(doorX + 3, doorY + doorH * 0.75, doorW - 6, doorH * 0.2);
-  g.fill(PALETTE.doorDark);
+    // Welcome mat
+    g.rect(doorX + 2, doorY + doorH - 4, doorW - 4, 3);
+    g.fill({ color: 0x8a5a3a, alpha: 0.5 });
+  } else {
+    // Closed door
+    g.rect(doorX, doorY, doorW, doorH);
+    g.fill(PALETTE.doorLight);
 
-  // Door handle
-  g.circle(doorX + doorW - 6, doorY + doorH * 0.5, 2);
-  g.fill(PALETTE.doorHandle);
+    // Upper panel (glass)
+    g.rect(doorX + 3, doorY + 3, doorW - 6, doorH * 0.4);
+    g.fill({ color: PALETTE.windowGlowBright, alpha: 0.5 });
+
+    // Lower panels
+    g.rect(doorX + 3, doorY + doorH * 0.5, doorW - 6, doorH * 0.2);
+    g.fill(PALETTE.doorDark);
+    g.rect(doorX + 3, doorY + doorH * 0.75, doorW - 6, doorH * 0.2);
+    g.fill(PALETTE.doorDark);
+
+    // Door handle
+    g.circle(doorX + doorW - 6, doorY + doorH * 0.5, 2);
+    g.fill(PALETTE.doorHandle);
+  }
 
   // ===== DOORSTEP =====
   g.rect(doorX - 4, groundY - 2, doorW + 8, 4);

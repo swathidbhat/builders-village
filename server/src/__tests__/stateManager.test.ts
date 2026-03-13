@@ -16,11 +16,11 @@ describe('StateManager', () => {
     const sm = new StateManager();
 
     sm.updateCursorProjects(new Map([
-      ['p1', makeProject('p1', '/Users/me/project-a', [{ id: 'a1', name: 'a1', status: 'active', source: 'cursor' }])],
+      ['p1', makeProject('p1', '/Users/me/project-a', [{ id: 'a1', name: 'a1', status: 'working', source: 'cursor' }])],
     ]));
 
     sm.updateClaudeProjects(new Map([
-      ['p2', makeProject('p2', '/Users/me/project-b', [{ id: 'a2', name: 'a2', status: 'active', source: 'claude-code' }])],
+      ['p2', makeProject('p2', '/Users/me/project-b', [{ id: 'a2', name: 'a2', status: 'working', source: 'claude-code' }])],
     ]));
 
     const state = sm.getState();
@@ -31,11 +31,11 @@ describe('StateManager', () => {
     const sm = new StateManager();
 
     sm.updateCursorProjects(new Map([
-      ['p1', makeProject('p1', '/Users/me/my-project', [{ id: 'a1', name: 'a1', status: 'active', source: 'cursor' }])],
+      ['p1', makeProject('p1', '/Users/me/my-project', [{ id: 'a1', name: 'a1', status: 'working', source: 'cursor' }])],
     ]));
 
     sm.updateClaudeProjects(new Map([
-      ['p2', makeProject('p2', '/Users/me/my-project', [{ id: 'a2', name: 'a2', status: 'active', source: 'claude-code' }])],
+      ['p2', makeProject('p2', '/Users/me/my-project', [{ id: 'a2', name: 'a2', status: 'working', source: 'claude-code' }])],
     ]));
 
     const state = sm.getState();
@@ -47,11 +47,11 @@ describe('StateManager', () => {
     const sm = new StateManager();
 
     sm.updateCursorProjects(new Map([
-      ['p1', makeProject('p1', '/Users/me/my_project/', [{ id: 'a1', name: 'a1', status: 'active', source: 'cursor' }])],
+      ['p1', makeProject('p1', '/Users/me/my_project/', [{ id: 'a1', name: 'a1', status: 'working', source: 'cursor' }])],
     ]));
 
     sm.updateClaudeProjects(new Map([
-      ['p2', makeProject('p2', '/Users/me/my-project', [{ id: 'a2', name: 'a2', status: 'active', source: 'claude-code' }])],
+      ['p2', makeProject('p2', '/Users/me/my-project', [{ id: 'a2', name: 'a2', status: 'working', source: 'claude-code' }])],
     ]));
 
     const state = sm.getState();
