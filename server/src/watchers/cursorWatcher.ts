@@ -10,6 +10,8 @@ import type { Agent, AgentStatus, Project } from '../../../shared/types.js';
 export type CursorWatcherCallback = (projects: Map<string, Project>) => void;
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const IDLE_TERMINAL_MS = 10 * 60 * 1000;
+const MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 export class CursorWatcher {
   private cursorBase: string;
@@ -77,9 +79,13 @@ export class CursorWatcher {
             const data = parseTerminalFile(join(terminalsDir, file));
             if (!data) continue;
 
+            const termAgeMs = data.lastModifiedMs ? Date.now() - data.lastModifiedMs : 0;
+            if (termAgeMs > MAX_AGE_MS) continue;
+
             let status: AgentStatus;
             if (data.isRunning) {
-              status = 'working';
+              const outputStale = data.lastModifiedMs > 0 && termAgeMs > IDLE_TERMINAL_MS;
+              status = outputStale ? 'waiting' : 'working';
             } else if (data.exitCode !== undefined) {
               status = 'done';
             } else {
@@ -97,6 +103,10 @@ export class CursorWatcher {
               elapsedMs: data.startedAt
                 ? Date.now() - new Date(data.startedAt).getTime()
                 : undefined,
+              lastActivityMs: data.lastModifiedMs || undefined,
+              sessionMeta: {
+                projectPath: dirNameToPath(dirName),
+              },
             });
           }
         } catch {
@@ -115,6 +125,9 @@ export class CursorWatcher {
               const data = parseTranscriptDir(subDir);
               if (!data) continue;
 
+              const transcriptAgeMs = Date.now() - data.lastActivityMs;
+              if (transcriptAgeMs > MAX_AGE_MS) continue;
+
               const agentId = `cursor-agent-${entry.name}`;
               if (agents.some(a => a.id === agentId)) continue;
 
@@ -122,8 +135,7 @@ export class CursorWatcher {
               if (data.isRecentlyActive) {
                 status = 'working';
               } else {
-                const ageMs = Date.now() - data.lastActivityMs;
-                status = ageMs < ONE_HOUR_MS ? 'waiting' : 'done';
+                status = transcriptAgeMs < ONE_HOUR_MS ? 'waiting' : 'done';
               }
 
               agents.push({
@@ -133,10 +145,18 @@ export class CursorWatcher {
                 source: 'cursor',
                 currentTask: data.userQuery,
                 lastAction: data.lastAction,
+                lastActivityMs: data.lastActivityMs,
+                sessionMeta: {
+                  projectPath: dirNameToPath(dirName),
+                  transcriptPath: subDir,
+                },
               });
             } else if (entry.name.endsWith('.txt')) {
               const data = parseTranscriptFile(join(transcriptsDir, entry.name));
               if (!data) continue;
+
+              const txtAgeMs = Date.now() - data.lastActivityMs;
+              if (txtAgeMs > MAX_AGE_MS) continue;
 
               const agentId = `cursor-agent-${basename(entry.name, '.txt')}`;
               if (agents.some(a => a.id === agentId)) continue;
@@ -145,8 +165,7 @@ export class CursorWatcher {
               if (data.isRecentlyActive) {
                 status = 'working';
               } else {
-                const ageMs = Date.now() - data.lastActivityMs;
-                status = ageMs < ONE_HOUR_MS ? 'waiting' : 'done';
+                status = txtAgeMs < ONE_HOUR_MS ? 'waiting' : 'done';
               }
 
               agents.push({
@@ -156,6 +175,11 @@ export class CursorWatcher {
                 source: 'cursor',
                 currentTask: data.userQuery,
                 lastAction: data.lastAction,
+                lastActivityMs: data.lastActivityMs,
+                sessionMeta: {
+                  projectPath: dirNameToPath(dirName),
+                  transcriptPath: join(transcriptsDir, entry.name),
+                },
               });
             }
           }

@@ -1,5 +1,12 @@
-export type AgentStatus = 'working' | 'waiting' | 'done';
+export type AgentStatus = 'working' | 'waiting' | 'done' | 'error';
 export type AgentSource = 'cursor' | 'claude-code' | 'codex';
+
+export interface SessionMeta {
+  projectPath: string;
+  transcriptPath?: string;
+  sessionId?: string;
+  cwd?: string;
+}
 
 export interface Agent {
   id: string;
@@ -8,8 +15,11 @@ export interface Agent {
   source: AgentSource;
   currentTask?: string;
   lastAction?: string;
+  errorReason?: string;
   startedAt?: string;
   elapsedMs?: number;
+  lastActivityMs?: number;
+  sessionMeta?: SessionMeta;
 }
 
 export interface Project {

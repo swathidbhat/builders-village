@@ -123,6 +123,8 @@ export function parseClaudeSessionFile(filePath: string): ClaudeSessionData | nu
         if (entry.sessionId && !sessionId) sessionId = entry.sessionId;
         if (entry.cwd && !cwd) cwd = entry.cwd;
 
+        const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
+
         if (entry.type === 'user' && entry.message?.content) {
           const msgContent = typeof entry.message.content === 'string'
             ? entry.message.content
@@ -131,7 +133,6 @@ export function parseClaudeSessionFile(filePath: string): ClaudeSessionData | nu
                 .map((c: { text: string }) => c.text)
                 .join(' ');
 
-          const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
           if (ts >= latestTimestamp && msgContent.length > 0) {
             latestTimestamp = ts;
             latestTask = msgContent.slice(0, 200);
@@ -152,7 +153,6 @@ export function parseClaudeSessionFile(filePath: string): ClaudeSessionData | nu
             }
           }
 
-          const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
           if (ts > latestTimestamp) latestTimestamp = ts;
         }
       } catch {

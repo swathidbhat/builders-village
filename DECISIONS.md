@@ -4,6 +4,79 @@ Newest decisions at the top.
 
 ---
 
+## 2026-03-16 | Fire clears on new activity, not a timer
+
+**Decision**: Fire events persist until the errored agent shows new activity (its `lastActivityMs` exceeds the fire event's timestamp), replacing the previous 10-minute TTL that blindly expired.
+
+**Principles applied**: Visual state should reflect reality, not arbitrary timers.
+
+**Why**: The original implementation expired fire events after 10 minutes regardless of whether the agent recovered. This meant fires auto-extinguished even if the agent was still broken. A first attempt to fix this checked the agent's watcher-assigned status (`'working'`), but that was also wrong — when a session ends (even in error), the transcript file is updated, and the watcher briefly marks it `'working'` because the file was recently modified. This caused fires to be dropped the moment they were created.
+
+**Example scenario**: Agent A errors at hour 1 while agents B, C, and D continue working on the same project. At hour 2, agent A is still idle — building stays on fire, B/C/D keep working normally. At hour 3, agent A starts a new session — new transcript entries give it a `lastActivityMs` after the fire event's timestamp. Fire clears. The key insight is that "recently modified file" (from the session ending) is not the same as "new work after the error." Comparing timestamps makes this distinction correctly.
+
+**Tradeoffs accepted**: Added a `lastActivityMs` field to the `Agent` type, populated by all three watchers. Fire events for projects that disappear entirely (e.g., aged out by the 48-hour cap) are also cleaned up. If a fire event can't find its target agent or project, it's kept (in case the agent appears in a future scan).
+
+---
+
+## 2026-03-16 | 48-hour age cap and idle terminal detection
+
+**Decision**: All three watchers (Cursor, Claude, Codex) now drop agents whose last activity is older than 48 hours. Additionally, Cursor terminal agents that have a live PID but no terminal output for 10+ minutes are marked `waiting` instead of `working`.
+
+**Principles applied**: Consistent behavior across all sources. Show what's actually happening, not what's technically alive.
+
+**Why (age cap)**: Previously, Cursor and Claude had no age limit (every historical session appeared forever), while Codex had a 1-hour cutoff that was too aggressive — projects disappeared as soon as you took a break. Now all three use the same 48-hour window: recent enough to show projects you're actively working on, old enough to survive overnight breaks.
+
+**Why (idle terminal)**: A Cursor terminal process stays alive as long as the Cursor window is open, even if nobody is using it. The old logic checked "is the PID alive?" and marked it `working` if yes — which was misleading. Now we check the terminal file's modification time: if nothing has been written to the terminal in 10+ minutes, the process is idle regardless of PID liveness. This prevents ghost "working" status on terminals that are just sitting open.
+
+**Tradeoffs accepted**: The 48-hour threshold is a heuristic — a user who takes a 3-day weekend will lose their shops. The 10-minute idle threshold may occasionally mark a legitimately slow long-running command as idle. Both thresholds can be tuned if needed.
+
+---
+
+## 2026-03-16 | Click agent panel to open IDE session
+
+**Decision**: Clicking an agent row in the interior view opens/focuses the IDE window where that agent is running, via a server-side `POST /api/open-session` endpoint that runs `open -a "Cursor"` (or `open -a "Terminal"` for Claude/Codex). Agent objects now carry a `sessionMeta` field with source-specific data (project path, transcript path, session ID, working directory).
+
+**Principles applied**: The village should be a launchpad, not just a dashboard. Clicking should take you where you need to go.
+
+**Why**: Previously, clicking an agent row only expanded/collapsed a detail card — a dead end. The user still had to manually find and switch to the right IDE window. Now one click gets them there.
+
+**Tradeoffs accepted**: For Cursor agents, there's no deep link into a specific agent chat — we can only focus the project window. A toast explains this limitation. For Claude/Codex, we open the project directory in Terminal rather than resuming the specific session.
+
+---
+
+## 2026-03-16 | Error agents shown as representative in village view
+
+**Decision**: `getRepresentativeAgent` now includes `error` agents in its priority order: `working` → `error` → `waiting`. Previously, errored agents were not candidates for the representative character, so a project with only an errored agent would show a burning building with no character visible.
+
+**Principles applied**: If something went wrong, show the agent — don't hide it. The visual should match what the builder expects: a burning building should have someone standing in it.
+
+**Why**: When the only agent on a project hit an error, the building caught fire but the character disappeared entirely (since `getRepresentativeAgent` only looked for `working` and `waiting`). This was confusing — the fire said "something's wrong" but the absent character said "nobody's here." Showing the errored agent standing idle at the burning shop window makes the visual coherent: the agent is there, the building is on fire, something needs attention.
+
+**Tradeoffs accepted**: The errored agent appears as a still idle character (same as `waiting`), not a unique error pose. The fire effect and red status light on the building are the primary error indicators. A dedicated error animation could be added later but isn't necessary — the combination of idle character + fire is clear enough.
+
+---
+
+## 2026-03-14 | Buildings catch fire on session errors
+
+**Decision**: Buildings visually catch fire (PixiJS particle effect + red status light + orange tint) when an agent session ends in error. Detection is entirely hook-based via one-click opt-in for all three tools — Claude Code (`Stop` in `~/.claude/settings.json`), Cursor (`sessionEnd` in `~/.cursor/hooks.json`), and Codex (`hooks.stop` in `~/.codex/config.toml`). Each tool is configured independently via its own config file and format. Fire auto-extinguishes when the agent shows new successful activity.
+
+**Principles applied**: Show the builder what they need to know at a glance. Single, clean detection mechanism over layered heuristics.
+
+**Why**: When an agent session fails, nothing in the village currently communicates this. The builder might not notice for minutes. Fire is an unmistakable visual signal that maps to the builder's mental model: "something went wrong with my agent on this project." The metaphor is immediate and requires no explanation.
+
+**Why not JSONL scanning**: An earlier design included a zero-setup layer that scanned Claude Code JSONL files for `api_error` entries with high retry counts. This was dropped because: (1) the heuristic was narrow — it only covered Claude Code, and only one error type; (2) it was prone to false positives during the gap between retry storms and recovery, and false negatives for errors that don't produce `api_error` entries; (3) it became redundant the moment hooks were enabled; (4) maintaining two detection code paths adds complexity for marginal value. Hooks provide definitive session-outcome signals for all three tools.
+
+**Detection design**: All detection is hook-based. The three tools expose different signals:
+- **Claude Code**: `Stop` hook fires when a session ends. Payload includes `status` field. We fire on `status: "error"`, filter out `"aborted"` (user-initiated). Does not reveal the specific error type.
+- **Cursor**: `sessionEnd` hook provides the richest signal: `reason: "error"` plus an `error_message` string with whatever detail Cursor provides. We filter out `"aborted"`, `"window_close"`, `"user_close"`. NOT using `postToolUseFailure` because it fires on every individual tool failure (grep no-match, file-not-found) and would cause constant false-positive fires.
+- **Codex**: Hooks engine merged March 10, 2026 (PR #13276). `Stop` hook assumed to include status payload. New and potentially unstable — UI includes a disclaimer.
+
+**Hook setup UX**: One-click "Enable Fire Alerts" button in the village UI. The hook script lives at `~/.village/hooks/fire-hook.sh` (stable path independent of project location) and writes event files to `~/.village/events/`. Safe config modification strategy: if the tool's config file doesn't exist, create it; if it exists without hooks, take a backup and add the hooks section; if it already has hooks configured, show the builder a copy-paste snippet instead of auto-merging. This avoids the risk of corrupting existing hook configurations.
+
+**Tradeoffs accepted**: Hook-based detection requires explicit user opt-in — nothing works out of the box. This is intentional: modifying tool config files without consent would be worse than requiring a click. Hook-based detection only catches session-ending failures, not transient hiccups that the tool retries and recovers from — but this is correct behavior (transient retries shouldn't cause fire). Codex hooks are new and may not be in all released versions. The one-click setup modifies files outside the project directory (`~/.claude/`, `~/.cursor/`, `~/.codex/`) but only with explicit user consent and backup. The fire particle system adds rendering overhead per burning building (~40 sprites) but is destroyed when fire clears.
+
+---
+
 ## 2026-03-12 | Codex agent support
 
 **Decision**: Added a `CodexWatcher` that detects Codex (OpenAI) agent sessions alongside the existing Cursor and Claude Code watchers. Added `'codex'` to the `AgentSource` type. Sessions are discovered from `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` files.

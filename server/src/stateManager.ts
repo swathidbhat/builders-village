@@ -1,10 +1,19 @@
 import { EventEmitter } from 'events';
-import type { VillageState, Project } from '../../shared/types.js';
+import type { VillageState, Project, AgentSource } from '../../shared/types.js';
+
+interface FireEvent {
+  source: AgentSource;
+  sessionId: string;
+  reason: string;
+  cwd?: string;
+  timestamp: number;
+}
 
 export class StateManager extends EventEmitter {
   private cursorProjects = new Map<string, Project>();
   private claudeProjects = new Map<string, Project>();
   private codexProjects = new Map<string, Project>();
+  private pendingFireEvents: FireEvent[] = [];
   private state: VillageState = { projects: [], lastUpdated: new Date().toISOString() };
 
   updateCursorProjects(projects: Map<string, Project>): void {
@@ -24,6 +33,11 @@ export class StateManager extends EventEmitter {
 
   getState(): VillageState {
     return this.state;
+  }
+
+  reportFireEvent(source: AgentSource, sessionId: string, reason: string, cwd?: string): void {
+    this.pendingFireEvents.push({ source, sessionId, reason, cwd, timestamp: Date.now() });
+    this.rebuild();
   }
 
   private rebuild(): void {
@@ -54,6 +68,44 @@ export class StateManager extends EventEmitter {
     }
 
     const projects = Array.from(merged.values());
+
+    const survivingEvents: FireEvent[] = [];
+    for (const event of this.pendingFireEvents) {
+      let kept = false;
+      for (const project of projects) {
+        if (!event.cwd || project.path.toLowerCase() !== event.cwd.toLowerCase()) continue;
+
+        let target = event.sessionId
+          ? project.agents.find(a => a.id.includes(event.sessionId))
+          : null;
+
+        if (!target) target = project.agents[0] ?? null;
+        if (!target) break;
+
+        const hasNewActivity = target.lastActivityMs != null
+          && target.lastActivityMs > event.timestamp;
+
+        if (hasNewActivity) {
+          break;
+        }
+
+        target.status = 'error';
+        target.errorReason = event.reason;
+        survivingEvents.push(event);
+        kept = true;
+        break;
+      }
+      if (!kept) {
+        const noProjectMatch = !projects.some(
+          p => event.cwd && p.path.toLowerCase() === event.cwd.toLowerCase()
+        );
+        if (noProjectMatch) {
+          survivingEvents.push(event);
+        }
+      }
+    }
+    this.pendingFireEvents = survivingEvents;
+
     this.assignGridPositions(projects);
 
     this.state = {

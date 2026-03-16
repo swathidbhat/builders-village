@@ -16,7 +16,38 @@ It's built for **non-technical builders who use AI agents** (Cursor, Claude Code
 - **Shows when agents are blocked or need help.** Agents that have finished and are waiting for your next instruction show as **"waiting"** — they appear idle at the shop window, their status dot turns gray, and the header displays "N waiting for you." Buildings with no active agents appear **dulled** with their status light off, while active shops stay bright with a **green light**. You can tell at a glance which projects need your attention.
 - **Real-time updates.** The server pushes state changes over WebSocket (socket.io), so the village updates live as agents start, work, and finish.
 
-### 4. Does it require an API key?
+### 4. What do the visuals convey?
+
+**Buildings** reflect the current state of the project:
+
+| Visual | Technical Condition | What It Means |
+|--------|---------------------|---------------|
+| Dull gray building, dark gray status dot | All agents are `waiting` or `done` — none actively running | Your agents are idle. They've finished and are waiting for your next instruction, or completed a while ago. This project needs your attention. |
+| Bright full-color building, green glowing status dot | At least one agent is actively `working`, no errors | An agent is actively working — writing files, running commands, thinking. No action needed from you. |
+| Orange-tinted building on fire, red glowing status dot | At least one agent ended in `error` | Something went wrong. An agent session hit an error. The building catches fire with animated flames and smoke. You should investigate. |
+
+**Agent characters** reflect the individual agent's state. One representative agent is shown per building, chosen by priority: `working` first, then `error`, then `waiting`.
+
+| Visual | Technical Condition | What It Means |
+|--------|---------------------|---------------|
+| Animated character walking back and forth carrying a crate, green status dot | Agent status is `working` | Agent is actively working — editing files, running commands, thinking. Let it cook. |
+| Still character at shop window (building on fire), red pulsing status dot, error reason shown | Agent status is `error` | Something went wrong. The agent session hit an error. Investigate the error reason shown in the interior panel. |
+| Still character standing at shop window, gray status dot | Agent status is `waiting` | Agent finished its task and is waiting for your next instruction. |
+| No character shown | Agent status is `done` | Session is stale (finished over an hour ago). Not shown as the representative. Sessions older than 48 hours disappear entirely. |
+
+### 5. When does a fire start and stop?
+
+A building catches fire when an agent session ends in error (detected via hooks — see "Enable Fire Alerts" in the UI). The fire persists until the errored agent shows **new activity** — meaning it starts a new session or resumes work. Other agents on the same project are unaffected and keep working normally.
+
+**Example:** You have agents A, B, C, and D on one project. At hour 1, agent A hits an error. The building catches fire, but B, C, and D keep working — their characters still animate, and the interior panel shows them as green/working while agent A shows red/error. At hour 2, agent A is still idle — the fire keeps burning. At hour 3, you restart agent A on a new task. It begins producing new activity, the fire clears, and the building returns to normal.
+
+Fires do **not** clear on a timer. They stay until the specific agent that errored recovers.
+
+### 6. Can I click on an agent to go to its session?
+
+**Yes.** Clicking an agent row in the interior view opens the IDE window where that agent is running. For **Cursor** agents, it focuses the Cursor window for that project (you'll need to find the specific chat in the sidebar). For **Claude Code** and **Codex** agents, it opens the project directory in Terminal.
+
+### 7. Does it require an API key?
 
 **Optionally, yes** — an **Anthropic API key** (`ANTHROPIC_API_KEY`).
 
@@ -24,7 +55,7 @@ It powers the **"Human Lingo"** feature, which translates raw agent activity (e.
 
 **Without the key**, the app still works — it falls back to basic rule-based formatting of activity strings. You just won't get the LLM-polished labels.
 
-### 5. How to set it up?
+### 8. How to set it up?
 
 **Prerequisites:** Node.js and npm.
 

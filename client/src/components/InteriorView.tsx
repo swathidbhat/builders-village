@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { createCharacterTextures } from '../village/sprites/characters.js';
 import { PALETTE, hashColor, darkenColor, lightenColor } from '../village/sprites/colors.js';
@@ -6,6 +6,8 @@ import { friendlyNames, friendlyElapsed, friendlyWorkerStatus, friendlySource } 
 import { getAvatarDataUrl } from '../utils/avatars.js';
 import type { HumanLingo } from '../hooks/useHumanLingo.js';
 import type { Project, Agent } from '@shared/types';
+
+const API_BASE = 'http://localhost:3001';
 
 interface Props {
   project: Project;
@@ -19,7 +21,32 @@ const INTERIOR_H = 340;
 export function InteriorView({ project, onClose, humanLingo }: Props) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const appRef = useRef<PIXI.Application | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const openSession = useCallback(async (agent: Agent) => {
+    if (!agent.sessionMeta) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/open-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: agent.source, sessionMeta: agent.sessionMeta }),
+      });
+      const data = await res.json();
+      if (data.ok && agent.source === 'cursor') {
+        setToast('Opened in Cursor — navigate to the agent chat in the sidebar');
+      } else if (!data.ok) {
+        setToast(`Failed to open session: ${data.error}`);
+      }
+    } catch {
+      setToast('Could not connect to server');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -153,8 +180,7 @@ export function InteriorView({ project, onClose, humanLingo }: Props) {
                 key={agent.id}
                 agent={agent}
                 displayName={nameMap.get(agent.id)!}
-                isExpanded={expanded === agent.id}
-                onToggle={() => setExpanded(expanded === agent.id ? null : agent.id)}
+                onOpen={() => openSession(agent)}
                 getLabel={humanLingo.getLabel}
                 isTranslating={humanLingo.active && humanLingo.loading}
               />
@@ -165,21 +191,29 @@ export function InteriorView({ project, onClose, humanLingo }: Props) {
               </p>
             )}
           </div>
+
+          {/* Toast */}
+          {toast && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-village-800 border border-village-600 text-white/80 text-[10px] font-pixel px-4 py-2 rounded-lg shadow-lg animate-slideIn whitespace-nowrap">
+              {toast}
+            </div>
+          )}
         </div>
       </div>
     </>
   );
 }
 
-function AgentRow({ agent, displayName, isExpanded, onToggle, getLabel, isTranslating }: { agent: Agent; displayName: string; isExpanded: boolean; onToggle: () => void; getLabel: (agent: Agent) => string | undefined; isTranslating: boolean }) {
+function AgentRow({ agent, displayName, onOpen, getLabel, isTranslating }: { agent: Agent; displayName: string; onOpen: () => void; getLabel: (agent: Agent) => string | undefined; isTranslating: boolean }) {
   const name = displayName;
   const task = getLabel(agent);
   const avatarUrl = getAvatarDataUrl(agent.id, 32);
 
   return (
     <div
-      className="bg-village-800 rounded-lg px-3 py-2.5 hover:bg-village-750 transition-colors cursor-pointer"
-      onClick={onToggle}
+      className="bg-village-800 rounded-lg px-3 py-2.5 hover:bg-village-750 transition-colors cursor-pointer group"
+      onClick={onOpen}
+      title="Click to open session"
     >
       <div className="flex items-center gap-3">
         {/* Pixel character avatar */}
@@ -192,9 +226,11 @@ function AgentRow({ agent, displayName, isExpanded, onToggle, getLabel, isTransl
           />
           {/* Status dot on avatar */}
           <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-village-800 ${
-            agent.status === 'working'
-              ? 'bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.6)]'
-              : 'bg-gray-500'
+            agent.status === 'error'
+              ? 'bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.6)] animate-pulse'
+              : agent.status === 'working'
+                ? 'bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.6)]'
+                : 'bg-gray-500'
           }`} />
         </div>
 
@@ -210,15 +246,20 @@ function AgentRow({ agent, displayName, isExpanded, onToggle, getLabel, isTransl
               {friendlySource(agent.source)}
             </span>
           </div>
-          {isTranslating ? (
+          {agent.status === 'error' && agent.errorReason ? (
+            <p className="text-[10px] text-red-400 truncate mt-0.5">{agent.errorReason}</p>
+          ) : isTranslating ? (
             <div className="mt-1 h-3 w-3/4 rounded bg-gradient-to-r from-village-700 via-village-600 to-village-700 bg-[length:200%_100%] animate-shimmer" />
           ) : task ? (
             <p className="text-[10px] text-white/70 truncate mt-0.5">{task}</p>
           ) : null}
         </div>
 
-        {/* Right side: time */}
-        {agent.startedAt && <FriendlyTime startedAt={agent.startedAt} />}
+        {/* Right side: time + open indicator */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {agent.startedAt && <FriendlyTime startedAt={agent.startedAt} />}
+          <span className="text-white/30 group-hover:text-white/60 transition-colors text-xs">&#x2197;</span>
+        </div>
       </div>
     </div>
   );

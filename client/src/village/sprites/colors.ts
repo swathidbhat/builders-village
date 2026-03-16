@@ -72,6 +72,13 @@ export const PALETTE = {
   lampPost: 0x4a4a4a,
   lampGlow: 0xf8e8c0,
   fenceColor: 0xb8a080,
+
+  // Fire and smoke
+  fireYellow: 0xffdd44,
+  fireOrange: 0xff8800,
+  fireRed: 0xcc2200,
+  smoke: 0x444444,
+  fireGlow: 0xff6600,
 };
 
 export function hashColor(str: string, colors: number[]): number {

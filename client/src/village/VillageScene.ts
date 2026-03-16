@@ -3,11 +3,13 @@ import { tileToScreen, TILE_W, TILE_H } from './IsometricGrid.js';
 import { createGrassTile, createPathTile, createTreeSprite, createFlowerSprite, createLampPost } from './sprites/tiles.js';
 import { createBuildingTexture, BUILDING_W, BUILDING_H } from './sprites/buildings.js';
 import { createCharacterTextures } from './sprites/characters.js';
+import { FireEffect } from './sprites/fireEffect.js';
 import type { VillageState, Project, Agent } from '@shared/types';
 
 const MIN_GRID_RADIUS = 8;
 const GRID_PADDING = 4;
 const DULL_TINT = 0x8a8a8a;
+const FIRE_TINT = 0xff8844;
 
 interface StoreSprite {
   container: PIXI.Container;
@@ -21,6 +23,8 @@ interface StoreSprite {
   agentSprites: Map<string, AgentSprite>;
   statusLight: PIXI.Graphics;
   doorOpen: boolean;
+  fireEffect?: FireEffect;
+  onFire: boolean;
 }
 
 interface AgentSprite {
@@ -327,6 +331,8 @@ export class VillageScene {
 
     this.buildingLayer.addChild(container);
 
+    const hasError = project.agents.some(a => a.status === 'error');
+
     const store: StoreSprite = {
       container,
       buildingSprite,
@@ -339,7 +345,23 @@ export class VillageScene {
       agentSprites: new Map(),
       statusLight,
       doorOpen: hasActive,
+      onFire: false,
     };
+
+    if (hasError) {
+      store.onFire = true;
+      store.buildingSprite.tint = FIRE_TINT;
+      store.statusLight.clear();
+      const lightX = store.buildingSprite.x + BUILDING_W + 12;
+      const lightY = store.buildingSprite.y + BUILDING_H - 20;
+      drawStatusLight(store.statusLight, lightX, lightY, hasActive, true);
+      store.fireEffect = new FireEffect(
+        container,
+        store.buildingSprite.x + 10,
+        store.buildingSprite.y + 8,
+        BUILDING_W - 20,
+      );
+    }
 
     const rep = this.getRepresentativeAgent(project.agents);
     if (rep) this.addAgentSprites(store, [rep]);
@@ -349,6 +371,8 @@ export class VillageScene {
   private getRepresentativeAgent(agents: Agent[]): Agent | null {
     const working = agents.find(a => a.status === 'working');
     if (working) return working;
+    const error = agents.find(a => a.status === 'error');
+    if (error) return error;
     const waiting = agents.find(a => a.status === 'waiting');
     if (waiting) return waiting;
     return null;
@@ -369,18 +393,39 @@ export class VillageScene {
     }
 
     const hasWorking = project.agents.some(a => a.status === 'working');
+    const hasError = project.agents.some(a => a.status === 'error');
 
     if (store.doorOpen !== hasWorking) {
       store.doorOpen = hasWorking;
       const newTexture = createBuildingTexture(this.app.renderer, store.projectName, hasWorking);
       store.buildingSprite.texture = newTexture;
+    }
 
-      store.buildingSprite.tint = hasWorking ? 0xffffff : DULL_TINT;
+    if (hasError) {
+      store.buildingSprite.tint = FIRE_TINT;
+    } else if (hasWorking) {
+      store.buildingSprite.tint = 0xffffff;
+    } else {
+      store.buildingSprite.tint = DULL_TINT;
+    }
 
-      store.statusLight.clear();
-      const lightX = store.buildingSprite.x + BUILDING_W + 12;
-      const lightY = store.buildingSprite.y + BUILDING_H - 20;
-      drawStatusLight(store.statusLight, lightX, lightY, hasWorking);
+    store.statusLight.clear();
+    const lightX = store.buildingSprite.x + BUILDING_W + 12;
+    const lightY = store.buildingSprite.y + BUILDING_H - 20;
+    drawStatusLight(store.statusLight, lightX, lightY, hasWorking, hasError);
+
+    if (hasError && !store.onFire) {
+      store.onFire = true;
+      store.fireEffect = new FireEffect(
+        store.container,
+        store.buildingSprite.x + 10,
+        store.buildingSprite.y + 8,
+        BUILDING_W - 20,
+      );
+    } else if (!hasError && store.onFire) {
+      store.onFire = false;
+      store.fireEffect?.destroy();
+      store.fireEffect = undefined;
     }
 
     const rep = this.getRepresentativeAgent(project.agents);
@@ -504,6 +549,7 @@ export class VillageScene {
 
       this.animateClouds();
       this.moveWalkingAgents();
+      this.updateFireEffects(this.app.ticker.deltaMS);
     });
   }
 
@@ -614,7 +660,16 @@ export class VillageScene {
     }
   }
 
+  private updateFireEffects(deltaMs: number): void {
+    for (const store of this.stores.values()) {
+      store.fireEffect?.update(deltaMs);
+    }
+  }
+
   destroy(): void {
+    for (const store of this.stores.values()) {
+      store.fireEffect?.destroy();
+    }
     this.app.destroy(true);
   }
 }
@@ -624,14 +679,19 @@ function truncateName(name: string, maxLen: number): string {
   return name.slice(0, maxLen - 2) + '..';
 }
 
-function drawStatusLight(g: PIXI.Graphics, x: number, y: number, active: boolean): void {
+function drawStatusLight(g: PIXI.Graphics, x: number, y: number, active: boolean, error = false): void {
   g.rect(x + 1, y - 8, 2, 8);
   g.fill(0x4a4a4a);
 
   g.roundRect(x - 4, y - 2, 12, 10, 2);
   g.fill(0x3a3a3a);
 
-  if (active) {
+  if (error) {
+    g.circle(x + 2, y + 3, 5);
+    g.fill({ color: 0xe04040, alpha: 0.3 });
+    g.circle(x + 2, y + 3, 3);
+    g.fill(0xd03030);
+  } else if (active) {
     g.circle(x + 2, y + 3, 5);
     g.fill({ color: 0x40e040, alpha: 0.25 });
     g.circle(x + 2, y + 3, 3);

@@ -9,6 +9,7 @@ import type { Agent, AgentStatus, Project } from '../../../shared/types.js';
 export type CodexWatcherCallback = (projects: Map<string, Project>) => void;
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 export class CodexWatcher {
   private codexBase: string;
@@ -137,8 +138,8 @@ export class CodexWatcher {
       const meta = parseCodexSessionMeta(file);
       if (!meta || !meta.cwd) continue;
 
-      const ageMs = Date.now() - meta.lastActivityMs;
-      if (ageMs > ONE_HOUR_MS) continue;
+      const codexAgeMs = Date.now() - meta.lastActivityMs;
+      if (codexAgeMs > MAX_AGE_MS) continue;
 
       const cwd = meta.cwd;
       if (!projectSessions.has(cwd)) {
@@ -179,6 +180,12 @@ export class CodexWatcher {
           source: 'codex',
           currentTask: data.latestTask,
           lastAction: data.lastAction,
+          lastActivityMs: data.lastActivityMs,
+          sessionMeta: {
+            projectPath: cwd,
+            sessionId: data.sessionId,
+            cwd,
+          },
         });
       }
 

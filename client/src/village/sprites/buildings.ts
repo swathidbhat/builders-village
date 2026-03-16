@@ -29,6 +29,10 @@ export function createBuildingTexture(
   const H = BUILDING_H;
   const groundY = H - 4;
 
+  // Anchor bounds at (0,0) so generateTexture produces an exact W×H texture
+  g.rect(0, 0, W, H);
+  g.fill({ color: 0x000000, alpha: 0 });
+
   // Layout constants
   const roofPeak = 6;
   const roofBase = 30;

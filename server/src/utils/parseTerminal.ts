@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { readFileSync } from 'fs';
+import { readFileSync, statSync } from 'fs';
 
 export interface TerminalData {
   pid: number;
@@ -8,12 +8,18 @@ export interface TerminalData {
   startedAt?: string;
   isRunning: boolean;
   exitCode?: number;
+  lastModifiedMs: number;
 }
 
 export function parseTerminalFile(filePath: string): TerminalData | null {
   try {
     const content = readFileSync(filePath, 'utf-8');
-    return parseTerminalContent(content);
+    const data = parseTerminalContent(content);
+    if (!data) return null;
+    try {
+      data.lastModifiedMs = statSync(filePath).mtimeMs;
+    } catch { /* keep 0 */ }
+    return data;
   } catch {
     return null;
   }
@@ -52,6 +58,7 @@ export function parseTerminalContent(content: string): TerminalData | null {
     startedAt,
     isRunning,
     exitCode,
+    lastModifiedMs: 0,
   };
 }
 

@@ -10,6 +10,7 @@ import type { Agent, AgentStatus, Project } from '../../../shared/types.js';
 export type ClaudeWatcherCallback = (projects: Map<string, Project>) => void;
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const MAX_AGE_MS = 48 * 60 * 60 * 1000;
 
 export class ClaudeWatcher {
   private claudeBase: string;
@@ -105,6 +106,9 @@ export class ClaudeWatcher {
           const data = parseClaudeSessionFile(join(projectPath, file));
           if (!data) continue;
 
+          const claudeAgeMs = Date.now() - data.lastActivityMs;
+          if (claudeAgeMs > MAX_AGE_MS) continue;
+
           const isProcessRunning = Array.from(runningProcesses.entries()).some(
             ([cwd]) => data.cwd && cwd.startsWith(data.cwd)
           );
@@ -124,6 +128,12 @@ export class ClaudeWatcher {
             source: 'claude-code',
             currentTask: data.latestTask,
             lastAction: data.lastAction,
+            lastActivityMs: data.lastActivityMs,
+            sessionMeta: {
+              projectPath: dirNameToPath(dirName),
+              sessionId: data.sessionId,
+              cwd: data.cwd,
+            },
           });
         }
       } catch {
