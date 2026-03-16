@@ -45,6 +45,10 @@ Every project you're working on becomes a building in the village. The **buildin
 
 Each building has a **unique accent color** (awning, sign, poster) derived from the project name, so you can recognize your projects at a glance without reading labels. A **green status light** next to the building turns on when agents are actively working. When no agents are active, the light goes off and the building appears **dulled** -- you can tell at a glance which projects have work happening and which are idle.
 
+### Fire on Errors
+
+When an agent session ends with an error, the building **catches fire** -- flames and smoke particle effects, an orange tint, and a red pulsing status light make it impossible to miss. The fire **auto-extinguishes** when the agent shows new successful activity. This requires opt-in via the Fire Alerts setup card (see below).
+
 ### Thought Bubbles
 
 When an agent is actively working, a **parchment-colored bubble** floats above the building showing what the agent is doing in plain language ("Writing foo.ts", "Running tests"). This answers the most common question: "What is my agent doing right now?" Bubbles appear only during active work and disappear when the agent is idle. They bob gently so your eye catches them.
@@ -58,6 +62,8 @@ Clicking a building opens a **warehouse-style interior** that shows two things:
 **Agents carrying boxes** represent **work in progress**. An active agent is shown carrying a crate across the floor -- your current request being fulfilled. Idle agents stand without a box, waiting for your next instruction.
 
 Why boxes and not files or code? Because a non-technical builder doesn't think in files. They think: "I asked for something -- did it get done?" The box is the only unit of work that matches that mental model.
+
+**Click an agent row** to open its IDE session directly -- Cursor opens the project window, Claude Code and Codex open the terminal where the agent is running.
 
 ### Agent Characters
 
@@ -74,14 +80,27 @@ The sky uses a **gradient from deep blue to warm sage** rather than a flat color
 
 ### Header Stats
 
-The header shows three numbers: **Shops** (how many projects have agents), **Workers** (total agents detected), and **Working** (how many are actively running). The connection dot shows whether the server is reachable.
+The header shows three numbers: **Shops** (how many projects have agents), **Workers** (total agents detected), and **Working** (how many are actively running). When any buildings are on fire, a **Fires** count appears in orange. The connection dot shows whether the server is reachable.
+
+## Fire Alerts Setup
+
+Fire detection uses hooks that your coding agents already support. On first launch, a **Fire Alerts** card appears in the bottom-right corner. Click **Enable Fire Alerts** to configure hooks for all installed tools automatically:
+
+- **Claude Code** -- uses the `Stop` hook
+- **Cursor** -- uses the `sessionEnd` hook
+- **Codex** -- uses the `hooks.stop` hook (requires March 2026+ CLI)
+
+You can also disable hooks or dismiss the card. The card won't reappear once dismissed (stored in `localStorage`).
 
 ## How It Works
 
 - **Auto-detects** Cursor, Claude Code, and Codex agents from `~/.cursor/projects/`, `~/.claude/projects/`, and `~/.codex/sessions/`
 - **Real-time updates** via WebSocket -- agents appear and disappear as you start and stop them
+- **48-hour session window** -- agents older than 48 hours are automatically dropped to keep the village current
+- **Idle detection** -- Cursor terminal agents with no output for 10+ minutes are marked waiting instead of working
 - **Pan & zoom** the village with mouse drag and scroll wheel
 - **Click** any building to open its interior and see agent details
+- **Click** an agent row inside a building to jump to that session in your IDE
 
 ## Architecture
 
@@ -89,7 +108,9 @@ The header shows three numbers: **Shops** (how many projects have agents), **Wor
 Server (Node.js :3001)          Client (React + PixiJS :5177)
 ├── CursorWatcher (chokidar)    ├── VillageScene (isometric renderer)
 ├── ClaudeCodeWatcher           ├── InteriorView (warehouse interior)
-├── CodexWatcher                └── useVillageState (socket.io hook)
+├── CodexWatcher                ├── FireSetupCard (hook opt-in UI)
+├── FireEventWatcher            ├── fireEffect (flame particles)
+├── HookSetup (agent hooks)     └── useVillageState (socket.io hook)
 ├── StateManager
 └── WebSocket (socket.io)
 ```
