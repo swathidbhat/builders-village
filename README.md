@@ -49,10 +49,6 @@ Each building has a **unique accent color** (awning, sign, poster) derived from 
 
 When an agent session ends with an error, the building **catches fire** -- flames and smoke particle effects, an orange tint, and a red pulsing status light make it impossible to miss. The fire **auto-extinguishes** when the agent shows new successful activity. This requires opt-in via the Fire Alerts setup card (see below).
 
-### Thought Bubbles
-
-When an agent is actively working, a **parchment-colored bubble** floats above the building showing what the agent is doing in plain language ("Writing foo.ts", "Running tests"). This answers the most common question: "What is my agent doing right now?" Bubbles appear only during active work and disappear when the agent is idle. They bob gently so your eye catches them.
-
 ### The Interior (click a building)
 
 Clicking a building opens a **warehouse-style interior** that shows two things:
@@ -60,8 +56,6 @@ Clicking a building opens a **warehouse-style interior** that shows two things:
 **Boxes on shelves** represent **completed requests** -- each box is one thing you asked for that got done. "Add a login page" becomes a box. "Fix the checkout bug" becomes another. The shelves fill up over a work session, giving you a tangible sense of accomplishment. This is session-scoped: shelves start empty each time you restart the server, like starting a fresh workday.
 
 **Agents carrying boxes** represent **work in progress**. An active agent is shown carrying a crate across the floor -- your current request being fulfilled. Idle agents stand without a box, waiting for your next instruction.
-
-Why boxes and not files or code? Because a non-technical builder doesn't think in files. They think: "I asked for something -- did it get done?" The box is the only unit of work that matches that mental model.
 
 **Click an agent row** to open its IDE session directly -- Cursor opens the project window, Claude Code and Codex open the terminal where the agent is running.
 
