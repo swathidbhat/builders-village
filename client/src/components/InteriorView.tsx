@@ -470,14 +470,18 @@ function drawInterior(app: PIXI.Application, project: Project): void {
   const walkers: {
     container: PIXI.Container;
     sprite: PIXI.Sprite;
-    textures: { active: PIXI.Texture[]; idle: PIXI.Texture };
+    textures: { active: PIXI.Texture[]; idle: PIXI.Texture; error: PIXI.Texture[] };
     box: PIXI.Graphics;
     speed: number;
     dir: number;
     minX: number;
     maxX: number;
     isActive: boolean;
+    isError: boolean;
     frame: number;
+    homeX: number;
+    homeY: number;
+    phase: number;
   }[] = [];
 
   const floorMinY = floorY + 36;
@@ -493,6 +497,7 @@ function drawInterior(app: PIXI.Application, project: Project): void {
     const agent = agents[i];
     const textures = createCharacterTextures(app.renderer, agent.id);
     const isActive = agent.status === 'working';
+    const isError = agent.status === 'error';
 
     const container = new PIXI.Container();
     const startX = padX + i * spacing + spacing / 2;
@@ -500,7 +505,9 @@ function drawInterior(app: PIXI.Application, project: Project): void {
     container.x = startX;
     container.y = rowY;
 
-    const sprite = new PIXI.Sprite(isActive ? textures.active[0] : textures.idle);
+    const sprite = new PIXI.Sprite(
+      isError ? textures.error[0] : isActive ? textures.active[0] : textures.idle
+    );
     sprite.anchor.set(0.5, 1);
     sprite.scale.set(1.4);
     container.addChild(sprite);
@@ -530,13 +537,30 @@ function drawInterior(app: PIXI.Application, project: Project): void {
       minX: 30,
       maxX: W - 30,
       isActive,
+      isError,
       frame: 0,
+      homeX: startX,
+      homeY: rowY,
+      phase: 0,
     });
   }
 
   // Animate only working agents; idle ones stand still
   app.ticker.add(() => {
     for (const w of walkers) {
+      if (w.isError) {
+        w.phase += 0.15;
+        w.container.x = w.homeX + Math.sin(w.phase) * 3;
+        w.container.y = w.homeY + Math.cos(w.phase * 1.3) * 2;
+        w.sprite.scale.x = 1.4;
+
+        w.frame = (w.frame + 1) % 30;
+        if (w.frame === 0 || w.frame === 15) {
+          w.sprite.texture = w.textures.error[w.frame === 0 ? 0 : 1];
+        }
+        continue;
+      }
+
       if (!w.isActive) continue;
 
       w.container.x += w.speed * w.dir;

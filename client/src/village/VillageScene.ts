@@ -30,7 +30,7 @@ interface StoreSprite {
 interface AgentSprite {
   container: PIXI.Container;
   sprite: PIXI.Sprite;
-  textures: { active: PIXI.Texture[]; idle: PIXI.Texture };
+  textures: { active: PIXI.Texture[]; idle: PIXI.Texture; error: PIXI.Texture[] };
   animFrame: number;
   box: PIXI.Graphics;
   windowX: number;
@@ -40,6 +40,7 @@ interface AgentSprite {
   patrolY: number;
   walkSpeed: number;
   walkDir: number;
+  phase: number;
 }
 
 export class VillageScene {
@@ -442,7 +443,9 @@ export class VillageScene {
       if (rep) this.addAgentSprites(store, [rep]);
     } else if (rep && currentRepId) {
       const as = store.agentSprites.get(currentRepId)!;
-      if (rep.status !== 'working') {
+      if (rep.status === 'error') {
+        as.sprite.texture = as.textures.error[as.animFrame % 2];
+      } else if (rep.status !== 'working') {
         as.sprite.texture = as.textures.idle;
       }
     }
@@ -460,8 +463,9 @@ export class VillageScene {
       const agentContainer = new PIXI.Container();
 
       const isActive = agent.status === 'working';
+      const isError = agent.status === 'error';
       const sprite = new PIXI.Sprite(
-        isActive ? textures.active[0] : textures.idle
+        isError ? textures.error[0] : isActive ? textures.active[0] : textures.idle
       );
       sprite.anchor.set(0.5, 1);
 
@@ -498,6 +502,7 @@ export class VillageScene {
         patrolY,
         walkSpeed,
         walkDir: 1,
+        phase: 0,
       });
     }
   }
@@ -567,6 +572,9 @@ export class VillageScene {
         if (agent.status === 'working') {
           agentSprite.animFrame = (agentSprite.animFrame + 1) % 2;
           agentSprite.sprite.texture = agentSprite.textures.active[agentSprite.animFrame];
+        } else if (agent.status === 'error') {
+          agentSprite.animFrame = (agentSprite.animFrame + 1) % 2;
+          agentSprite.sprite.texture = agentSprite.textures.error[agentSprite.animFrame];
         }
       }
     }
@@ -623,8 +631,15 @@ export class VillageScene {
         if (!as) continue;
 
         const isActive = agent.status === 'working';
+        const isError = agent.status === 'error';
 
-        if (isActive) {
+        if (isError) {
+          as.phase += 0.15;
+          as.container.x = as.windowX + Math.sin(as.phase) * 2.5;
+          as.container.y = as.windowY + Math.cos(as.phase * 1.3) * 1.5;
+          as.sprite.scale.x = 1;
+          as.box.visible = false;
+        } else if (isActive) {
           const dy = as.patrolY - as.container.y;
           if (Math.abs(dy) > 1) {
             as.container.y += dy * 0.08;
