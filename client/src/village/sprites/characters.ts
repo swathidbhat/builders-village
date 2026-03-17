@@ -94,17 +94,11 @@ function drawCharFrame(
     g.fill(0xf1c40f);
   }
 
-  // Idle: "Zzz" dots
-  if (state === 'idle') {
-    g.rect(cx + 5, s - 28, 2, 2);
-    g.fill({ color: 0x95a5a6, alpha: 0.7 });
-    g.rect(cx + 8, s - 31, 2, 2);
-    g.fill({ color: 0x95a5a6, alpha: 0.7 });
-  }
+  // Idle: no indicator above head
 
-  // Error: red "!" bobbing above head
+  // Error: red "!" bobbing above raised arms
   if (isError) {
-    const exclY = s - 33 + (frame === 0 ? 0 : 1);
+    const exclY = s - 37 + (frame === 0 ? 0 : 1);
     g.rect(cx - 1 + wobbleX, exclY, 2, 4);
     g.fill(0xe04040);
     g.rect(cx - 1 + wobbleX, exclY + 5, 2, 2);

@@ -207,7 +207,7 @@ export function InteriorView({ project, onClose, humanLingo }: Props) {
 function AgentRow({ agent, displayName, onOpen, getLabel, isTranslating }: { agent: Agent; displayName: string; onOpen: () => void; getLabel: (agent: Agent) => string | undefined; isTranslating: boolean }) {
   const name = displayName;
   const task = getLabel(agent);
-  const avatarUrl = getAvatarDataUrl(agent.id, 32);
+  const avatarUrl = getAvatarDataUrl(agent.id, 32, agent.status === 'error');
 
   return (
     <div

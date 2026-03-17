@@ -26,8 +26,8 @@ function toCSS(color: number): string {
   return '#' + color.toString(16).padStart(6, '0');
 }
 
-export function getAvatarDataUrl(agentId: string, size = 32): string {
-  const key = `${agentId}-${size}`;
+export function getAvatarDataUrl(agentId: string, size = 32, isError = false): string {
+  const key = `${agentId}-${size}-${isError ? 'err' : 'ok'}`;
   if (avatarCache.has(key)) return avatarCache.get(key)!;
 
   const h = hash(agentId);
@@ -53,9 +53,9 @@ export function getAvatarDataUrl(agentId: string, size = 32): string {
   ctx.fillRect(5 * px, 2 * px, 6 * px, 5 * px);
 
   // Eyes
-  ctx.fillStyle = '#000';
-  ctx.fillRect(6 * px, 4 * px, 1.5 * px, 1.5 * px);
-  ctx.fillRect(9 * px, 4 * px, 1.5 * px, 1.5 * px);
+  ctx.fillStyle = isError ? '#cc2222' : '#000';
+  ctx.fillRect(6 * px, 4 * px, 1.5 * px, isError ? 2 * px : 1.5 * px);
+  ctx.fillRect(9 * px, 4 * px, 1.5 * px, isError ? 2 * px : 1.5 * px);
 
   // Body
   ctx.fillStyle = toCSS(shirt);
