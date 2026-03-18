@@ -17,8 +17,8 @@ If you use AI coding agents (Cursor, Claude Code, Codex), your work is invisible
 ## Quick Start
 
 ```bash
-git clone <repo-url>
-cd build-village-opus
+git clone https://github.com/swathidbhat/builders-village.git
+cd builders-village
 npm run install:all
 cp .env.example .env          # optional: add your ANTHROPIC_API_KEY
 npm run dev
@@ -55,7 +55,7 @@ Clicking a building opens a **warehouse-style interior** that shows two things:
 
 **Boxes on shelves** represent **completed requests** -- each box is one thing you asked for that got done. "Add a login page" becomes a box. "Fix the checkout bug" becomes another. The shelves fill up over a work session, giving you a tangible sense of accomplishment. This is session-scoped: shelves start empty each time you restart the server, like starting a fresh workday.
 
-**Agents carrying boxes** represent **work in progress**. An active agent is shown carrying a crate across the floor -- your current request being fulfilled. Idle agents stand without a box, waiting for your next instruction.
+**Agents carrying boxes** represent **work in progress**. An active agent is shown carrying a crate across the floor -- your current request being fulfilled. Idle agents stand without a box, waiting for your next instruction. Error agents wobble in small circles without a box, visually distinct from both active and idle states.
 
 **Click an agent row** to open its IDE session directly -- Cursor opens the project window, Claude Code and Codex open the terminal where the agent is running.
 
@@ -64,8 +64,9 @@ Clicking a building opens a **warehouse-style interior** that shows two things:
 Each agent gets a **unique pixel-art appearance** (skin tone, hair, shirt color) derived from its ID, so the same agent always looks the same across sessions. The **name** (Ada, Blake, Casey, etc.) is also stable per agent.
 
 - **Active agents** bounce and carry a sparkle effect
-- **Idle agents** stand still with small "Zzz" dots
-- A **status dot** on their avatar shows green (working) or gray (idle)
+- **Idle agents** stand still
+- **Error agents** wobble in place with raised arms, red eyes, and a red `!` above their head
+- A **status dot** on their avatar shows green (working), gray (idle), or red (error)
 - A **source badge** (Cursor / Claude / Codex) shows which tool is running them
 
 ### The Sky and Atmosphere
