@@ -89,7 +89,7 @@ You can also disable hooks or dismiss the card. The card won't reappear once dis
 
 ## How It Works
 
-- **Auto-detects** Cursor, Claude Code, and Codex agents from `~/.cursor/projects/`, `~/.claude/projects/`, and `~/.codex/sessions/`
+- **Auto-detects** Cursor, Claude Code, and Codex agents from `~/.cursor/projects/`, `~/.claude/projects/`, and `~/.codex/sessions/` (Claude Desktop Cowork sessions are not yet supported -- only terminal/IDE Claude Code)
 - **Real-time updates** via WebSocket -- agents appear and disappear as you start and stop them
 - **48-hour session window** -- agents older than 48 hours are automatically dropped to keep the village current
 - **Idle detection** -- Cursor terminal agents with no output for 10+ minutes are marked waiting instead of working

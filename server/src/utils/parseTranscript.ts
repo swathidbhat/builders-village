@@ -98,6 +98,7 @@ export interface ClaudeSessionData {
   cwd: string;
   latestTask: string;
   lastAction?: string;
+  slug?: string;
   isActive: boolean;
   lastActivityMs: number;
 }
@@ -116,12 +117,14 @@ export function parseClaudeSessionFile(filePath: string): ClaudeSessionData | nu
     let latestTask = '';
     let latestTimestamp = 0;
     let lastAction: string | undefined;
+    let slug: string | undefined;
 
     for (const line of lines) {
       try {
         const entry = JSON.parse(line);
         if (entry.sessionId && !sessionId) sessionId = entry.sessionId;
         if (entry.cwd && !cwd) cwd = entry.cwd;
+        if (entry.slug && !slug) slug = entry.slug;
 
         const ts = entry.timestamp ? new Date(entry.timestamp).getTime() : 0;
 
@@ -164,7 +167,7 @@ export function parseClaudeSessionFile(filePath: string): ClaudeSessionData | nu
 
     const isActive = (Date.now() - latestTimestamp) < 2 * 60 * 1000;
 
-    return { sessionId, cwd, latestTask, lastAction, isActive, lastActivityMs: latestTimestamp };
+    return { sessionId, cwd, latestTask, lastAction, slug, isActive, lastActivityMs: latestTimestamp };
   } catch {
     return null;
   }

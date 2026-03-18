@@ -93,12 +93,12 @@ export class ClaudeWatcher {
 
     const runningProcesses = this.getRunningClaudeProcesses();
 
+    const GENERIC_DIRS = ['Documents', 'Desktop', 'Downloads', 'home', 'Users'];
+
     for (const dirName of projectDirs) {
-      const projectName = extractProjectName(dirName);
-      const SYSTEM_DIRS = ['Documents', 'Desktop', 'Downloads', 'home', 'Users'];
-      if (SYSTEM_DIRS.includes(projectName)) continue;
       const projectPath = join(this.claudeBase, dirName);
       const agents: Agent[] = [];
+      let bestSlug: string | undefined;
 
       try {
         const sessionFiles = readdirSync(projectPath).filter(f => f.endsWith('.jsonl'));
@@ -108,6 +108,8 @@ export class ClaudeWatcher {
 
           const claudeAgeMs = Date.now() - data.lastActivityMs;
           if (claudeAgeMs > MAX_AGE_MS) continue;
+
+          if (data.slug) bestSlug = data.slug;
 
           const isProcessRunning = Array.from(runningProcesses.entries()).some(
             ([cwd]) => data.cwd && cwd.startsWith(data.cwd)
@@ -142,7 +144,10 @@ export class ClaudeWatcher {
 
       if (agents.length === 0) continue;
 
-      const name = extractProjectName(dirName);
+      let name = extractProjectName(dirName);
+      if (GENERIC_DIRS.includes(name)) {
+        name = bestSlug ?? name.toLowerCase();
+      }
       const path = dirNameToPath(dirName);
 
       this.projects.set(dirName, {
