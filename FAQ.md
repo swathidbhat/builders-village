@@ -31,7 +31,7 @@ It's built for **non-technical builders who use AI agents** (Cursor, Claude Code
 | Visual | Technical Condition | What It Means |
 |--------|---------------------|---------------|
 | Animated character walking back and forth carrying a crate, green status dot | Agent status is `working` | Agent is actively working — editing files, running commands, thinking. Let it cook. |
-| Still character at shop window (building on fire), red pulsing status dot, error reason shown | Agent status is `error` | Something went wrong. The agent session hit an error. Investigate the error reason shown in the interior panel. |
+| Wobbling character near shop (building on fire), red status dot, error reason shown in interior | Agent status is `error` | Something went wrong. The agent session hit an error. Investigate the error reason shown in the interior panel. |
 | Still character standing at shop window, gray status dot | Agent status is `waiting` | Agent finished its task and is waiting for your next instruction. |
 | No character shown | Agent status is `done` | Session is stale (finished over an hour ago). Not shown as the representative. Sessions older than 48 hours disappear entirely. |
 
@@ -45,7 +45,7 @@ Fires do **not** clear on a timer. They stay until the specific agent that error
 
 ### 6. Can I click on an agent to go to its session?
 
-**Yes.** Clicking an agent row in the interior view opens the IDE window where that agent is running. For **Cursor** agents, it focuses the Cursor window for that project (you'll need to find the specific chat in the sidebar). For **Claude Code** and **Codex** agents, it opens the project directory in Terminal.
+**Yes.** Clicking an agent row in the interior view opens the session. For **Cursor** agents, it focuses the Cursor window for that project (you'll need to find the specific chat in the sidebar). For **Claude Code** and **Codex** agents, idle/done/error agents are resumed directly via `claude --resume` / `codex resume` in a new terminal tab. Working agents open a terminal at the project path instead, to avoid interfering with the running session.
 
 ### 7. Does it require an API key?
 
@@ -79,6 +79,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 npm run dev
 ```
 
-This starts the server (port 3001) and the client (Vite dev server). Open the URL Vite prints (typically `http://localhost:5174`) in your browser.
+This starts the server (port 3001) and the client (Vite dev server). Open [http://localhost:5177](http://localhost:5177) in your browser.
 
 **Data sources:** Agents appear automatically if you have Cursor projects in `~/.cursor/projects/`, Claude Code sessions in `~/.claude/projects/`, or Codex sessions in `~/.codex/sessions/`. No extra configuration needed.

@@ -37,27 +37,21 @@ Copy `.env.example` to `.env` and fill in the values:
 
 ## What Each Visual Means
 
-### The Village Skyline
-
-Every project you're working on becomes a building in the village. The **building's size scales with the project's lines of code** -- small experiments are small cottages, large codebases become tall multi-story buildings. You glance at the skyline and immediately know which projects are substantial and which are lightweight. This uses LOC as a heuristic because it's the metric hardest to inflate accidentally and correlates most with actual effort over time. The data is the filesystem itself -- no tracking needed.
-
 ### Store Exteriors
 
 Each building has a **unique accent color** (awning, sign, poster) derived from the project name, so you can recognize your projects at a glance without reading labels. A **green status light** next to the building turns on when agents are actively working. When no agents are active, the light goes off and the building appears **dulled** -- you can tell at a glance which projects have work happening and which are idle.
 
 ### Fire on Errors
 
-When an agent session ends with an error, the building **catches fire** -- flames and smoke particle effects, an orange tint, and a red pulsing status light make it impossible to miss. The fire **auto-extinguishes** when the agent shows new successful activity. This requires opt-in via the Fire Alerts setup card (see below).
+When an agent session ends with an error, the building **catches fire** -- flames and smoke particle effects, an orange tint, and a red status light make it impossible to miss. The fire **auto-extinguishes** when the agent shows new successful activity. This requires opt-in via the Fire Alerts setup card (see below).
 
 ### The Interior (click a building)
 
-Clicking a building opens a **warehouse-style interior** that shows two things:
-
-**Boxes on shelves** represent **completed requests** -- each box is one thing you asked for that got done. "Add a login page" becomes a box. "Fix the checkout bug" becomes another. The shelves fill up over a work session, giving you a tangible sense of accomplishment. This is session-scoped: shelves start empty each time you restart the server, like starting a fresh workday.
+Clicking a building opens a **warehouse-style interior** with shelves of crates and your agents on the warehouse floor.
 
 **Agents carrying boxes** represent **work in progress**. An active agent is shown carrying a crate across the floor -- your current request being fulfilled. Idle agents stand without a box, waiting for your next instruction. Error agents wobble in small circles without a box, visually distinct from both active and idle states.
 
-**Click an agent row** to open its IDE session directly -- Cursor opens the project window, Claude Code and Codex open the terminal where the agent is running.
+**Click an agent row** to open its session -- Cursor opens the project window, and for Claude Code and Codex, idle/done/error agents are resumed directly via `claude --resume` / `codex resume` in a new terminal tab. Working agents open a terminal at the project path instead, to avoid interfering with the running session.
 
 ### Agent Characters
 
@@ -102,7 +96,7 @@ You can also disable hooks or dismiss the card. The card won't reappear once dis
 ```
 Server (Node.js :3001)          Client (React + PixiJS :5177)
 ├── CursorWatcher (chokidar)    ├── VillageScene (isometric renderer)
-├── ClaudeCodeWatcher           ├── InteriorView (warehouse interior)
+├── ClaudeWatcher               ├── InteriorView (warehouse interior)
 ├── CodexWatcher                ├── FireSetupCard (hook opt-in UI)
 ├── FireEventWatcher            ├── fireEffect (flame particles)
 ├── HookSetup (agent hooks)     └── useVillageState (socket.io hook)
