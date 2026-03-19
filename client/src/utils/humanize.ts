@@ -77,6 +77,7 @@ export function friendlyWorkerStatus(workingCount: number, waitingCount: number,
 export function friendlySource(source: string): string {
   if (source === 'cursor') return 'Cursor';
   if (source === 'claude-code') return 'Claude';
+  if (source === 'codex') return 'Codex';
   return source;
 }
 

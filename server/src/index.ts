@@ -93,7 +93,11 @@ app.post('/api/hooks/disable', (_req, res) => {
 });
 
 app.post('/api/open-session', (req, res) => {
-  const { source, sessionMeta } = req.body as { source: AgentSource; sessionMeta: SessionMeta };
+  const { source, status, sessionMeta } = req.body as {
+    source: AgentSource;
+    status?: string;
+    sessionMeta: SessionMeta;
+  };
 
   if (!sessionMeta?.projectPath) {
     res.json({ ok: false, error: 'Missing projectPath' });
@@ -103,20 +107,27 @@ app.post('/api/open-session', (req, res) => {
   const safePath = sessionMeta.projectPath.replace(/'/g, "'\\''");
 
   let cmd: string;
+  let resumed = false;
   switch (source) {
     case 'cursor':
       cmd = `open -a "Cursor" '${safePath}'`;
       break;
     case 'claude-code':
-      if (sessionMeta.sessionId) {
-        cmd = `open -a "Terminal" '${safePath}'`;
+    case 'codex': {
+      const canResume = status !== 'working' && sessionMeta.sessionId;
+      if (canResume) {
+        const safeId = sessionMeta.sessionId!.replace(/[^a-zA-Z0-9_-]/g, '');
+        const dir = (sessionMeta.cwd || sessionMeta.projectPath).replace(/'/g, "'\\''");
+        const resumeCmd = source === 'claude-code'
+          ? `claude --resume '${safeId}'`
+          : `codex resume '${safeId}'`;
+        cmd = `osascript -e 'tell application "Terminal" to do script "cd '\\''${dir}'\\'' && ${resumeCmd}"'`;
+        resumed = true;
       } else {
         cmd = `open -a "Terminal" '${safePath}'`;
       }
       break;
-    case 'codex':
-      cmd = `open -a "Terminal" '${safePath}'`;
-      break;
+    }
     default:
       res.json({ ok: false, error: `Unknown source: ${source}` });
       return;
@@ -127,7 +138,7 @@ app.post('/api/open-session', (req, res) => {
       console.error(`[open-session] Failed to open session:`, err.message);
       res.json({ ok: false, error: err.message });
     } else {
-      res.json({ ok: true, source });
+      res.json({ ok: true, source, resumed });
     }
   });
 });

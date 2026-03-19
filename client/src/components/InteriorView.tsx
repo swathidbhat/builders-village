@@ -29,11 +29,13 @@ export function InteriorView({ project, onClose, humanLingo }: Props) {
       const res = await fetch(`${API_BASE}/api/open-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: agent.source, sessionMeta: agent.sessionMeta }),
+        body: JSON.stringify({ source: agent.source, status: agent.status, sessionMeta: agent.sessionMeta }),
       });
       const data = await res.json();
       if (data.ok && agent.source === 'cursor') {
         setToast('Opened in Cursor — navigate to the agent chat in the sidebar');
+      } else if (data.ok && data.resumed) {
+        setToast('Resuming session in Terminal');
       } else if (!data.ok) {
         setToast(`Failed to open session: ${data.error}`);
       }
