@@ -1,5 +1,7 @@
 # Builder's Village
 
+https://github.com/user-attachments/assets/f2ad5d38-ba67-4213-8e9a-da524eb27137
+
 A pixel-art village that visualizes your running coding agents across projects. Each project becomes a storefront, each agent becomes a character working inside it. The village is designed for non-technical builders who use AI agents -- every visual element maps to something meaningful about their work.
 
 ## Why
