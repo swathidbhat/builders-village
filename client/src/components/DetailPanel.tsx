@@ -90,10 +90,10 @@ function AgentCard({ agent }: { agent: Agent }) {
       </div>
 
       {/* Task description */}
-      {formatActivity(agent.lastAction || agent.currentTask) && (
+      {formatActivity(agent.lastAction) && (
         <div className="mt-2">
           <p className="text-xs text-gray-300 font-mono leading-relaxed">
-            {formatActivity(agent.lastAction || agent.currentTask)}
+            {formatActivity(agent.lastAction)}
           </p>
         </div>
       )}

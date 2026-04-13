@@ -201,7 +201,7 @@ function extractFirstSentence(text: string): string {
  * This is a raw representation; the client's humanizeToolUse() will
  * further refine the display text.
  */
-function formatToolUse(toolName: string, input?: Record<string, unknown>): string {
+export function formatToolUse(toolName: string, input?: Record<string, unknown>): string {
   if (!input) return toolName;
 
   const path = (input.file_path || input.path || input.file || '') as string;

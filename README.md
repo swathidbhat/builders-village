@@ -43,7 +43,7 @@ Each building has a **unique accent color** (awning, sign, poster) derived from 
 
 ### Fire on Errors
 
-When an agent session ends with an error, the building **catches fire** -- flames and smoke particle effects, an orange tint, and a red status light make it impossible to miss. The fire **auto-extinguishes** when the agent shows new successful activity. This requires opt-in via the Fire Alerts setup card (see below).
+When an agent session ends with an error, the building **catches fire** -- flames and smoke particle effects, an orange tint, and a red status light make it impossible to miss. The fire **auto-extinguishes** when the agent shows new successful activity. This requires opt-in via the Agent Hooks setup card (see below).
 
 ### The Interior (click a building)
 
@@ -71,20 +71,25 @@ The sky uses a **gradient from deep blue to warm sage** rather than a flat color
 
 The header shows three numbers: **Shops** (how many projects have agents), **Workers** (total agents detected), and **Working** (how many are actively running). When any buildings are on fire, a **Fires** count appears in orange. The connection dot shows whether the server is reachable.
 
-## Fire Alerts Setup
+## Agent Hooks Setup
 
-Fire detection uses hooks that your coding agents already support. On first launch, a **Fire Alerts** card appears in the bottom-right corner. Click **Enable Fire Alerts** to configure hooks for all installed tools automatically:
+Builder's Village can receive **real-time status updates** from your coding agents via hooks, providing more accurate and responsive status tracking than filesystem inference alone. When hooks are enabled, the village gets immediate notifications for session starts, tool usage, stops, and errors.
 
-- **Claude Code** -- uses the `Stop` hook
-- **Cursor** -- uses the `sessionEnd` hook
-- **Codex** -- uses the `hooks.stop` hook (requires March 2026+ CLI)
+On first launch, an **Agent Hooks** card appears in the bottom-right corner. Click **Enable Agent Hooks** to configure hooks for all installed tools automatically:
 
-You can also disable hooks or dismiss the card. The card won't reappear once dismissed (stored in `localStorage`).
+- **Claude Code** -- hooks on `SessionStart`, `PostToolUse`, `Stop`, and `SessionEnd`
+- **Cursor** -- hooks on `sessionStart`, `postToolUse`, `stop`, and `sessionEnd`
+- **Codex** -- hooks on `SessionStart` and `Stop` (requires March 2026+ CLI)
+
+Hooks are **additive** -- they append to your existing hook configuration without replacing anything. A backup of each config file is saved before modification. You can disable hooks or dismiss the card at any time.
+
+Without hooks, everything still works -- status is inferred from filesystem watchers, just with slightly less precision and responsiveness.
 
 ## How It Works
 
 - **Auto-detects** Cursor, Claude Code, and Codex agents from `~/.cursor/projects/`, `~/.claude/projects/`, and `~/.codex/sessions/` (Claude Desktop Cowork sessions are not yet supported -- only terminal/IDE Claude Code)
 - **Real-time updates** via WebSocket -- agents appear and disappear as you start and stop them
+- **Hook overlay system** -- when Agent Hooks are enabled, real-time lifecycle events override filesystem-inferred status for higher accuracy. Status is marked as `realtime` (from hooks) or `inferred` (from filesystem). Without hooks, everything still works via inference alone
 - **48-hour session window** -- agents older than 48 hours are automatically dropped to keep the village current
 - **Idle detection** -- Cursor terminal agents with no output for 10+ minutes are marked waiting instead of working
 - **Pan & zoom** the village with mouse drag and scroll wheel
@@ -97,8 +102,8 @@ You can also disable hooks or dismiss the card. The card won't reappear once dis
 Server (Node.js :3001)          Client (React + PixiJS :5177)
 ├── CursorWatcher (chokidar)    ├── VillageScene (isometric renderer)
 ├── ClaudeWatcher               ├── InteriorView (warehouse interior)
-├── CodexWatcher                ├── FireSetupCard (hook opt-in UI)
-├── FireEventWatcher            ├── fireEffect (flame particles)
+├── CodexWatcher                ├── HookSetupCard (hook opt-in UI)
+├── EventWatcher (hook events)  ├── fireEffect (flame particles)
 ├── HookSetup (agent hooks)     └── useVillageState (socket.io hook)
 ├── StateManager
 └── WebSocket (socket.io)

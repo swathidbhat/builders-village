@@ -126,6 +126,7 @@ export class ClaudeWatcher {
           agents.push({
             id: `claude-${data.sessionId}`,
             name: `Claude ${data.sessionId.slice(0, 8)}`,
+            sessionId: data.sessionId,
             status,
             source: 'claude-code',
             currentTask: data.latestTask,

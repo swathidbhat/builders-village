@@ -1,5 +1,6 @@
 export type AgentStatus = 'working' | 'waiting' | 'done' | 'error';
 export type AgentSource = 'cursor' | 'claude-code' | 'codex';
+export type AgentStatusSource = 'realtime' | 'inferred';
 
 export interface SessionMeta {
   projectPath: string;
@@ -11,7 +12,9 @@ export interface SessionMeta {
 export interface Agent {
   id: string;
   name: string;
+  sessionId: string;
   status: AgentStatus;
+  statusSource?: AgentStatusSource;
   source: AgentSource;
   currentTask?: string;
   lastAction?: string;

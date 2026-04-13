@@ -95,6 +95,7 @@ export class CursorWatcher {
             agents.push({
               id: `cursor-terminal-${data.pid}`,
               name: `Terminal ${data.pid}`,
+              sessionId: `terminal-${data.pid}`,
               status,
               source: 'cursor',
               currentTask: data.command || undefined,
@@ -141,6 +142,7 @@ export class CursorWatcher {
               agents.push({
                 id: agentId,
                 name: `Agent ${entry.name.slice(0, 8)}`,
+                sessionId: entry.name,
                 status,
                 source: 'cursor',
                 currentTask: data.userQuery,
@@ -171,6 +173,7 @@ export class CursorWatcher {
               agents.push({
                 id: agentId,
                 name: `Agent ${basename(entry.name, '.txt').slice(0, 8)}`,
+                sessionId: basename(entry.name, '.txt'),
                 status,
                 source: 'cursor',
                 currentTask: data.userQuery,

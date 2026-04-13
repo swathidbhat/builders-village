@@ -29,12 +29,12 @@ const TOOL_LABELS: Record<string, string> = {
   codex: 'Codex',
 };
 
-export function FireSetupCard() {
+export function HookSetupCard() {
   const [status, setStatus] = useState<HookStatusResponse | null>(null);
   const [enableResult, setEnableResult] = useState<EnableResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [dismissed, setDismissed] = useState(() =>
-    localStorage.getItem('village:fire-setup-dismissed') === '1'
+    localStorage.getItem('village:hook-setup-dismissed') === '1'
   );
 
   const fetchStatus = useCallback(async () => {
@@ -84,14 +84,14 @@ export function FireSetupCard() {
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('village:fire-setup-dismissed', '1');
+    localStorage.setItem('village:hook-setup-dismissed', '1');
     setDismissed(true);
   };
 
   return (
     <div className="fixed bottom-4 right-4 z-40 w-80 bg-village-900 border border-village-700 rounded-lg shadow-xl">
       <div className="flex items-center justify-between px-4 py-2 border-b border-village-700">
-        <h3 className="text-xs font-pixel text-orange-400">Fire Alerts</h3>
+        <h3 className="text-xs font-pixel text-orange-400">Agent Hooks</h3>
         <button
           onClick={handleDismiss}
           className="text-white/40 hover:text-white/70 text-sm leading-none"
@@ -103,7 +103,7 @@ export function FireSetupCard() {
 
       <div className="px-4 py-3 space-y-3">
         <p className="text-[10px] text-white/60">
-          Buildings catch fire when agent sessions end with errors.
+          Get real-time agent status updates and error detection for your buildings.
         </p>
 
         <div className="space-y-1.5">
@@ -119,7 +119,7 @@ export function FireSetupCard() {
 
         <p className="text-[9px] text-yellow-500/70 italic">
           Codex hooks shipped in March 2026 and may not be available in older versions.
-          If fire detection doesn't work for Codex, update to the latest Codex CLI.
+          If hooks don't work for Codex, update to the latest Codex CLI.
         </p>
 
         <div className="flex gap-2">
@@ -129,7 +129,7 @@ export function FireSetupCard() {
               disabled={loading}
               className="flex-1 text-[10px] font-pixel px-3 py-1.5 rounded bg-orange-600 hover:bg-orange-500 text-white disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Setting up...' : 'Enable Fire Alerts'}
+              {loading ? 'Setting up...' : 'Enable Agent Hooks'}
             </button>
           )}
           {TOOLS.some(t => status[t] === 'configured') && (

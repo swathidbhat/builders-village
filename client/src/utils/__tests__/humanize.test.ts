@@ -9,7 +9,7 @@ import {
 import type { Agent } from '@shared/types';
 
 function makeAgent(id: string): Agent {
-  return { id, name: id, status: 'working', source: 'cursor' };
+  return { id, name: id, sessionId: id, status: 'working', source: 'cursor' };
 }
 
 describe('friendlyName', () => {

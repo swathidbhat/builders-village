@@ -66,11 +66,16 @@ Project {
 Agent {
   id: string              // PID or session UUID
   name: string            // "Cursor Agent 1"
-  status: active | idle
-  source: cursor | claude-code
+  sessionId: string       // for hook overlay matching
+  status: working | waiting | done | error
+  statusSource?: realtime | inferred  // set by StateManager
+  source: cursor | claude-code | codex
   currentTask?: string    // user query or command
+  lastAction?: string     // latest tool use
+  errorReason?: string    // if status = error
   startedAt?: string
   elapsedMs?: number
+  lastActivityMs?: number
 }
 ```
 
@@ -88,6 +93,16 @@ Agent {
 - Cross-reference with `ps aux` for live processes
 - Latest user message = current task
 
+## Hook Overlay Architecture
+
+When Agent Hooks are enabled, the server receives real-time lifecycle events that override filesystem-inferred status:
+
+- **EventWatcher** watches `~/.village/events/` for `fire-*.json` and `status-*.json` files
+- Events are normalized into `HookRuntimeEntry` objects and stored in `StateManager.hookRuntimeByKey`
+- During `rebuild()`, overlays are matched to agents via two-tier lookup: sessionId first, then cwd
+- Overlays expire via TTL: 10 minutes for active states, 1 hour for terminal states
+- Each agent gets `statusSource: 'realtime' | 'inferred'` to indicate the authority source
+
 ## Milestones
 
 1. **M1 - Scaffold** - Monorepo, types, dev tooling
@@ -96,3 +111,4 @@ Agent {
 4. **M4 - Interactions** - Click stores, detail panel, camera controls
 5. **M5 - Integration** - Real-time sync, live elapsed times
 6. **M6 - Polish** - Vibrant palette, ambient animations, transitions
+7. **M7 - Hook Overlay** - Real-time status from agent hooks, TTL-based expiry, two-tier matching

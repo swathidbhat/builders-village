@@ -12,7 +12,7 @@ import cors from 'cors';
 import { CursorWatcher } from './watchers/cursorWatcher.js';
 import { ClaudeWatcher } from './watchers/claudeWatcher.js';
 import { CodexWatcher } from './watchers/codexWatcher.js';
-import { FireEventWatcher } from './watchers/fireEventWatcher.js';
+import { EventWatcher } from './watchers/eventWatcher.js';
 import { StateManager } from './stateManager.js';
 import { humanizeTexts } from './services/humanizer.js';
 import { exec } from 'child_process';
@@ -45,7 +45,7 @@ const codexWatcher = new CodexWatcher((projects) => {
   stateManager.updateCodexProjects(projects);
 });
 
-const fireEventWatcher = new FireEventWatcher(stateManager);
+const eventWatcher = new EventWatcher(stateManager);
 
 stateManager.on('change', (state) => {
   io.emit('village:state', state);
@@ -89,6 +89,7 @@ app.post('/api/hooks/enable', (_req, res) => {
 
 app.post('/api/hooks/disable', (_req, res) => {
   const result = disableHooks();
+  stateManager.clearHookRuntimeForSources(['claude-code', 'cursor', 'codex']);
   res.json(result);
 });
 
@@ -146,7 +147,7 @@ app.post('/api/open-session', (req, res) => {
 cursorWatcher.start();
 claudeWatcher.start();
 codexWatcher.start();
-fireEventWatcher.start();
+eventWatcher.start();
 
 httpServer.listen(PORT, () => {
   console.log(`[Server] Builder's Village server running on http://localhost:${PORT}`);
@@ -159,7 +160,7 @@ process.on('SIGINT', () => {
   cursorWatcher.stop();
   claudeWatcher.stop();
   codexWatcher.stop();
-  fireEventWatcher.stop();
+  eventWatcher.stop();
   httpServer.close();
   process.exit(0);
 });

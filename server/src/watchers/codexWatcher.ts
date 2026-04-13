@@ -176,6 +176,7 @@ export class CodexWatcher {
         agents.push({
           id: `codex-${data.sessionId}`,
           name: threadName || `Codex ${data.sessionId.slice(0, 8)}`,
+          sessionId: data.sessionId,
           status,
           source: 'codex',
           currentTask: data.latestTask,

@@ -6,12 +6,12 @@
     "esModuleInterop": true,
     "strict": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "paths": {
       "@shared/*": ["../shared/*"]
     },
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*", "../shared/**/*"]
+  "include": ["src/**/*"],
+  "exclude": ["src/**/__tests__/**", "src/**/*.test.ts"]
 }

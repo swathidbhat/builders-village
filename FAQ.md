@@ -10,7 +10,7 @@ It's built for **non-technical builders who use AI agents** (Cursor, Claude Code
 
 ### 3. How does it work?
 
-- **Scans for projects automatically.** The server watches `~/.cursor/projects/`, `~/.claude/projects/`, and `~/.codex/sessions/` using file watchers (chokidar). It reads terminal files, agent transcripts (JSONL), and session rollout files, and checks running processes to detect active agents.
+- **Scans for projects automatically.** The server watches `~/.cursor/projects/`, `~/.claude/projects/`, and `~/.codex/sessions/` using file watchers (chokidar). It reads terminal files, agent transcripts (JSONL), and session rollout files, and checks running processes to detect active agents. When **Agent Hooks** are enabled, the server also receives real-time lifecycle events (session start, tool use, stop, end) that override file-based inference for higher accuracy.
 - **Projects become shops.** Each project with at least one agent becomes a building in the village, with a unique accent color derived from the project name.
 - **Agents become workers.** Each agent gets a unique pixel-art character (stable appearance and name like Ada, Blake, Casey) shown inside or near its shop. Active agents carry crates and bounce; idle agents stand still.
 - **Shows when agents are blocked or need help.** Agents that have finished and are waiting for your next instruction show as **"waiting"** — they appear idle at the shop window, their status dot turns gray, and the header displays "N waiting for you." Buildings with no active agents appear **dulled** with their status light off, while active shops stay bright with a **green light**. You can tell at a glance which projects need your attention.
@@ -37,7 +37,7 @@ It's built for **non-technical builders who use AI agents** (Cursor, Claude Code
 
 ### 5. When does a fire start and stop?
 
-A building catches fire when an agent session ends in error (detected via hooks — see "Enable Fire Alerts" in the UI). The fire persists until the errored agent shows **new activity** — meaning it starts a new session or resumes work. Other agents on the same project are unaffected and keep working normally.
+A building catches fire when an agent session ends in error (detected via hooks — see "Enable Agent Hooks" in the UI). The fire persists until the errored agent shows **new activity** — meaning it starts a new session or resumes work. Other agents on the same project are unaffected and keep working normally. Hook-based error overlays expire after 1 hour (terminal TTL) if no new activity is detected.
 
 **Example:** You have agents A, B, C, and D on one project. At hour 1, agent A hits an error. The building catches fire, but B, C, and D keep working — their characters still animate, and the interior panel shows them as green/working while agent A shows red/error. At hour 2, agent A is still idle — the fire keeps burning. At hour 3, you restart agent A on a new task. It begins producing new activity, the fire clears, and the building returns to normal.
 
@@ -82,3 +82,15 @@ npm run dev
 This starts the server (port 3001) and the client (Vite dev server). Open [http://localhost:5177](http://localhost:5177) in your browser.
 
 **Data sources:** Agents appear automatically if you have Cursor projects in `~/.cursor/projects/`, Claude Code sessions in `~/.claude/projects/`, or Codex sessions in `~/.codex/sessions/`. No extra configuration needed.
+
+### 9. What's the difference between "realtime" and "inferred" status?
+
+Each agent's status has a **source**: either `realtime` or `inferred`.
+
+- **Inferred** means the status was determined by reading files on disk — file modification times, JSONL content, and running process checks. This is the default when no hooks are configured. It works well but has a slight delay (up to 2 minutes to detect activity changes).
+
+- **Realtime** means the status came directly from an agent hook event (SessionStart, PostToolUse, Stop, SessionEnd). This is immediate and authoritative — it overrides any inferred status while active.
+
+Realtime overlays expire automatically: **10 minutes** for non-terminal states (working, waiting) and **1 hour** for terminal states (done, error). After expiry, the agent reverts to inferred status. This prevents stale hook data from permanently overriding filesystem observations.
+
+You don't need to do anything differently — enable Agent Hooks for the best accuracy, and the system handles the rest transparently.

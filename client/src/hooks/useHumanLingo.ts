@@ -32,7 +32,7 @@ export function useHumanLingo(
     const rawSet = new Set<string>();
     for (const project of state.projects) {
       for (const agent of project.agents) {
-        const raw = agent.lastAction || agent.currentTask;
+        const raw = agent.lastAction;
         if (raw && !cacheRef.current.has(raw)) {
           rawSet.add(raw);
         }
@@ -57,7 +57,7 @@ export function useHumanLingo(
   }, [active, state.lastUpdated, socketRef]);
 
   const getLabel = useCallback((agent: Agent): string | undefined => {
-    const raw = agent.lastAction || agent.currentTask;
+    const raw = agent.lastAction;
     if (!raw) return undefined;
     if (active) {
       return cacheRef.current.get(raw) || formatActivity(raw);

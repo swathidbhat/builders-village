@@ -53,7 +53,7 @@ export class VillageScene {
   private stores = new Map<string, StoreSprite>();
   private tileTextures: PIXI.Texture[] = [];
   private clouds: { sprite: PIXI.Graphics; speed: number }[] = [];
-  private decorationSprites: PIXI.DisplayObject[] = [];
+  private decorationSprites: PIXI.Sprite[] = [];
   private currentGridRadius = 0;
 
   private isDragging = false;
